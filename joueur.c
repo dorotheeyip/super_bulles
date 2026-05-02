@@ -1,0 +1,34 @@
+#include "joueur.h"
+
+void initialiser_joueur(Joueur* joueur, char* pseudo){ // x,y et tx ty a maj
+    strcpy(joueur->pseudo, pseudo);
+    joueur->x=SCREEN_W/2;
+    joueur->y=SCREEN_H-20;
+    joueur->tx=40;
+    joueur->ty=40;
+    joueur->score=0;
+    joueur->arme=0;
+}
+
+void deplacer_joueur(Joueur* joueur, int direction){
+    if(direction==0){
+        joueur->x-=1;
+    }
+    if(direction==1){
+        joueur->x+=1;
+    }
+}
+
+Projectile tirer(Joueur* joueur){
+    Projectile proj;
+    proj.x=joueur->x;
+    proj.y=joueur->y;
+    proj.actif=1;
+    if(joueur->arme==0){
+        proj.vitesse=300;
+    }
+    else {
+        proj.vitesse=500;
+    }
+    return proj;
+}
