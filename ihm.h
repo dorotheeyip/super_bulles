@@ -15,10 +15,20 @@ typedef enum {
 typedef struct {
     int gauche;
     int droite;
-    int tirer;
     int pause;
 } Input;
 
+typedef struct {
+    char buffer[50];
+    char affichage[50];
+    int index;
+    int fini;
+} SaisiePseudo;
+
+
+void ihm_init_saisie_pseudo(SaisiePseudo *s);
+void ihm_update_saisie_pseudo(SaisiePseudo *s);
+void ihm_afficher_saisie_pseudo(SaisiePseudo *s, int x, int y);
 
 // Initialisation de l'IHM
 void ihm_init();
@@ -79,5 +89,7 @@ void ihm_attendre_touche();
 
 // Remet à zéro tous les états d'input
 void ihm_reset_inputs();
+
+void ihm_maj_etats_precedents();
 
 #endif 
