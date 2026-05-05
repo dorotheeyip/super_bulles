@@ -30,6 +30,9 @@ int collision_bulle_projectile(Bulle* bulle, Projectile* proj);
 int collision_bulle_joueur(Bulle* bulle, Joueur* joueur);
 // Vérifie la collision entre une bulle et le joueur 
 
+int collision_bulle_bulle(Bulle* bulle1, Bulle* bulle2);
+// Vérifie la collision entre deux bulles
+
 int collision_boss_projectile(Boss* boss, Projectile* proj);
 // Retourne 1 si le projectile touche le boss
 

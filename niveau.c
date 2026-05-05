@@ -165,6 +165,17 @@ int collision_bulle_joueur(Bulle* bulle, Joueur* joueur){
     return 0;
 }
 
+int collision_bulle_bulle(Bulle* bulle1, Bulle* bulle2){
+    float dx = bulle1->x - bulle2->x;
+    float dy = bulle1->y - bulle2->y;
+    float distance2 = dx*dx + dy*dy;
+    float somme_r = bulle1->r + bulle2->r;
+    if(distance2 < somme_r * somme_r){
+        return 1;
+    }
+    return 0;
+}
+
 int collision_boss_projectile(Boss* boss, Projectile* proj){
     float dx = boss->x - proj->x;
     float dy = boss->y - proj->y;
