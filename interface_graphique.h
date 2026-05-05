@@ -25,7 +25,7 @@ void draw_menu(int selection);
 
 /* On passe uniquement les infos utiles */
 
-void draw_player(int x, int y);
+void draw_player(int x, int y, int moving, int dir);
 
 void draw_bubble(int x, int y, int active);
 

@@ -9,6 +9,21 @@ typedef enum {
     ETAT_FIN
 } EtatJeu;
 
+#define NB_BULLES 5
+
+int bulle_x[NB_BULLES];
+int bulle_y[NB_BULLES];
+int bulle_dx[NB_BULLES]; /* vitesse horizontale */
+int bulle_dy[NB_BULLES]; /* vitesse verticale */
+int bulle_active[NB_BULLES];
+int cpt_spawn_bulle = 0;  /* compteur pour espacer les spawns */
+
+#define NB_PROJ 10 /* nombre de projectiles simultanés */
+
+int proj_x[NB_PROJ];
+int proj_y[NB_PROJ];
+int proj_active[NB_PROJ];
+
 /* ============================= */
 /* ===== VARIABLES GLOBALES ==== */
 /* ============================= */
@@ -22,7 +37,7 @@ BITMAP *img_banner = NULL;
 
 /* Animations */
 BITMAP *img_player[2];
-BITMAP *img_projectile[2];
+BITMAP *img_projectile = NULL;
 
 BITMAP *img_background_menu = NULL;
 BITMAP *img_background_lvl1 = NULL;
@@ -61,8 +76,7 @@ int init_graphics() {
     img_banner = load_bitmap("assets/baniere_menu.bmp", NULL);
 
     /* Projectile animation */
-    /*img_projectile[0] = load_bitmap("assets/projectile1.bmp", NULL);
-    /*img_projectile[1] = load_bitmap("assets/projectile2.bmp", NULL);
+    img_projectile = load_bitmap("assets/projectile1.bmp", NULL);
 
     /* background */
     img_background_menu = load_bitmap("assets/menu.bmp", NULL);
@@ -93,7 +107,6 @@ void destroy_graphics() {
 
     for (int i = 0; i < 2; i++) {
         if (img_player[i]) destroy_bitmap(img_player[i]);
-        if (img_projectile[i]) destroy_bitmap(img_projectile[i]);
     }
     if (img_bubble) destroy_bitmap(img_bubble);
     if (img_background_menu) destroy_bitmap(img_background_menu);
@@ -101,6 +114,7 @@ void destroy_graphics() {
     if (img_background_lvl3) destroy_bitmap(img_background_lvl3);
     if (img_background_lvl4) destroy_bitmap(img_background_lvl4);
     if (img_banner) destroy_bitmap(img_banner);
+    if (img_projectile) destroy_bitmap(img_projectile);
 }
 
 
@@ -160,7 +174,7 @@ void draw_menu(int selection) {
     }
 
     textout_centre_ex(buffer, font, "SUPER BULLES",
-                      SCREEN_W/2, 150, makecol(255,255,255), -1);
+                      SCREEN_W/2, 140, makecol(255,255,255), -1);
 
     /* === AJOUT DES OPTIONS === */
 
@@ -194,25 +208,79 @@ void draw_menu(int selection) {
 /* ===== ENTITES =============== */
 /* ============================= */
 
-void draw_player(int x, int y) {
+int moving = 0;
 
-    cpt_player++;
+void draw_player(int x, int y, int moving, int dir) {
 
-    if (cpt_player > 10) {
-        cpt_player = 0;
-        anim_player = (anim_player + 1) % 2;
+    if (moving) {
+        cpt_player++;
+        if (cpt_player > 10) {
+            cpt_player = 0;
+            anim_player = (anim_player + 1) % 2;
+        }
+    } else {
+        anim_player = 0;
     }
 
-    stretch_sprite(buffer, img_player[anim_player],
-               x, y,
-               img_player[anim_player]->w * 2,
-               img_player[anim_player]->h * 2);
+    BITMAP *frame = img_player[anim_player];
+
+    int w = frame->w * 3;
+    int h = frame->h * 3;
+
+    BITMAP *tmp = create_bitmap(w, h);
+
+    /* Remplir en magenta au lieu de noir */
+    clear_to_color(tmp, makecol(255, 0, 255));
+
+    stretch_sprite(tmp, frame, 0, 0, w, h);
+
+    if (dir == 1) {
+        draw_sprite(buffer, tmp, x, y);
+    } else {
+        draw_sprite_h_flip(buffer, tmp, x, y);
+    }
+
+    destroy_bitmap(tmp);
 }
 
 void draw_bubble(int x, int y, int active) {
-    if (active && img_bubble) {
-        draw_sprite(buffer, img_bubble, x, y);
+    if (!active || !img_bubble) return;
+
+    int w = img_bubble->w / 4;  /* divise par 2 pour réduire, ajuste à ta guise */
+    int h = img_bubble->h / 4;
+
+    BITMAP *tmp = create_bitmap(w, h);
+    clear_to_color(tmp, makecol(255, 0, 255));
+
+    stretch_sprite(tmp, img_bubble, 0, 0, w, h);
+    draw_sprite(buffer, tmp, x, y);
+
+    destroy_bitmap(tmp);
+}
+
+void spawn_bulle(int index) {
+    int cote = rand() % 3; /* 0=gauche, 1=droite, 2=haut */
+
+    if (cote == 0) {         /* depuis la gauche */
+        bulle_x[index] = -32;
+        bulle_y[index] = rand() % (SCREEN_H - 100);
+        bulle_dx[index] = 2 + rand() % 3;
+        bulle_dy[index] = 1 + rand() % 2;
     }
+    else if (cote == 1) {    /* depuis la droite */
+        bulle_x[index] = SCREEN_W;
+        bulle_y[index] = rand() % (SCREEN_H - 100);
+        bulle_dx[index] = -(2 + rand() % 3);
+        bulle_dy[index] = 1 + rand() % 2;
+    }
+    else {                   /* depuis le haut */
+        bulle_x[index] = rand() % (SCREEN_W - 32);
+        bulle_y[index] = -32;
+        bulle_dx[index] = 0;
+        bulle_dy[index] = 2 + rand() % 3;
+    }
+
+    bulle_active[index] = 1;
 }
 
 void draw_projectile(int x, int y, int active) {
@@ -220,13 +288,21 @@ void draw_projectile(int x, int y, int active) {
     if (!active) return;
 
     cpt_projectile++;
-
     if (cpt_projectile > 5) {
         cpt_projectile = 0;
         anim_projectile = (anim_projectile + 1) % 2;
     }
 
-    draw_sprite(buffer, img_projectile[anim_projectile], x, y);
+    int w = img_projectile->w * 2;  /* Change le multiplicateur pour ajuster la taille */
+    int h = img_projectile->h * 2;
+
+    BITMAP *tmp = create_bitmap(w, h);
+    clear_to_color(tmp, makecol(255, 0, 255));
+
+    stretch_sprite(tmp, img_projectile, 0, 0, w, h);
+    draw_sprite(buffer, tmp, x, y);
+
+    destroy_bitmap(tmp);
 }
 
 
@@ -288,11 +364,22 @@ int main() {
     EtatJeu etat = ETAT_MENU;
     int selection = 0;
 
-    /* Variables de jeu */
+    /* Variables jeu */
     int player_x = 100;
-    int player_y = 400;
+    int player_y = 425;
     int score = 0;
     int temps = 60;
+    int dir = 1; /* 1 = droite, -1 = gauche */
+
+    /* Init projectiles */
+    for (int i = 0; i < NB_PROJ; i++)
+        proj_active[i] = 0;
+
+    /* Init bulles */
+    srand(time(NULL));
+    for (int i = 0; i < NB_BULLES; i++)
+        bulle_active[i] = 0;
+    cpt_spawn_bulle = 0;
 
     while (!key[KEY_ESC]) {
 
@@ -312,14 +399,22 @@ int main() {
             }
 
             if (key[KEY_ENTER]) {
-
                 if (selection == 0) {
-                    etat = ETAT_JEU; // 👉 LANCER LE JEU
+                    etat = ETAT_JEU;
+                    player_x = 100;
+                    player_y = 425;
+                    score = 0;
+                    temps = 60;
+                    dir = 1;
+                    for (int i = 0; i < NB_PROJ; i++)
+                        proj_active[i] = 0;
+                    for (int i = 0; i < NB_BULLES; i++)
+                        bulle_active[i] = 0;
+                    cpt_spawn_bulle = 0;
                 }
                 else if (selection == 3) {
                     break;
                 }
-
                 rest(200);
             }
 
@@ -330,16 +425,82 @@ int main() {
         else if (etat == ETAT_JEU) {
 
             clear_screen();
-
-            /* Fond niveau 1 */
             draw_background_level(1);
 
-            /* Joueur */
-            draw_player(player_x, player_y);
+            int moving = 0;
 
-            /* UI */
+            if (key[KEY_RIGHT]) {
+                player_x += 5;
+                moving = 1;
+                dir = -1;
+            }
+
+            if (key[KEY_LEFT]) {
+                player_x -= 5;
+                moving = 1;
+                dir = 1;
+            }
+
+            if (player_x < 0) player_x = 0;
+            if (player_x > SCREEN_W - 100) player_x = SCREEN_W - 100;
+
+            /* === PROJECTILES === */
+            for (int i = 0; i < NB_PROJ; i++) {
+                if (proj_active[i]) {
+                    proj_y[i] -= 8;
+                    if (proj_y[i] < -32)
+                        proj_active[i] = 0;
+                }
+            }
+
+            int peut_tirer = 1;
+            for (int i = 0; i < NB_PROJ; i++) {
+                if (proj_active[i] && proj_y[i] > player_y - 60) {
+                    peut_tirer = 0;
+                    break;
+                }
+            }
+
+            if (peut_tirer) {
+                for (int i = 0; i < NB_PROJ; i++) {
+                    if (!proj_active[i]) {
+                        proj_x[i] = player_x + 40;
+                        proj_y[i] = player_y;
+                        proj_active[i] = 1;
+                        break;
+                    }
+                }
+            }
+
+            for (int i = 0; i < NB_PROJ; i++)
+                draw_projectile(proj_x[i], proj_y[i], proj_active[i]);
+
+            /* === BULLES ENNEMIES === */
+            cpt_spawn_bulle++;
+            if (cpt_spawn_bulle > 60) {
+                cpt_spawn_bulle = 0;
+                for (int i = 0; i < NB_BULLES; i++) {
+                    if (!bulle_active[i]) {
+                        spawn_bulle(i);
+                        break;
+                    }
+                }
+            }
+
+            for (int i = 0; i < NB_BULLES; i++) {
+                if (bulle_active[i]) {
+                    bulle_x[i] += bulle_dx[i];
+                    bulle_y[i] += bulle_dy[i];
+
+                    if (bulle_x[i] > SCREEN_W + 32 || bulle_x[i] < -32 || bulle_y[i] > SCREEN_H + 32)
+                        bulle_active[i] = 0;
+
+                    draw_bubble(bulle_x[i], bulle_y[i], bulle_active[i]);
+                }
+            }
+
+            draw_player(player_x, player_y, moving, dir);
             draw_ui(score, temps, "Player1");
-
             update_display();
 
             rest(20);
@@ -348,10 +509,12 @@ int main() {
         /* ================= FIN ================= */
         else if (etat == ETAT_FIN) {
             draw_end_screen(score, 1);
+            rest(20);
         }
     }
 
     destroy_graphics();
     return 0;
 }
+
 END_OF_MAIN();
