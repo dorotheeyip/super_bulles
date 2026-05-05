@@ -244,18 +244,9 @@ void draw_player(int x, int y, int moving, int dir) {
 }
 
 void draw_bubble(int x, int y, int active) {
-    if (!active || !img_bubble) return;
-
-    int w = img_bubble->w / 4;  /* divise par 2 pour réduire, ajuste à ta guise */
-    int h = img_bubble->h / 4;
-
-    BITMAP *tmp = create_bitmap(w, h);
-    clear_to_color(tmp, makecol(255, 0, 255));
-
-    stretch_sprite(tmp, img_bubble, 0, 0, w, h);
-    draw_sprite(buffer, tmp, x, y);
-
-    destroy_bitmap(tmp);
+    if (active && img_bubble) {
+        draw_sprite(buffer, img_bubble, x, y);
+    }
 }
 
 void spawn_bulle(int index) {
