@@ -26,10 +26,23 @@ void draw_menu(int selection);
 /* On passe uniquement les infos utiles */
 
 void draw_player(int x, int y, int moving, int dir);
+void draw_boss(int x, int y, int moving_boss, int dir);
+void draw_boss_vie(int vie);
 
 void draw_bubble(int x, int y, int active);
 
+void draw_explosion(int x, int y, int active, int anim);
+void draw_eclair(int x, int y, int active, int anim);
+
 void draw_projectile(int x, int y, int active);
+void draw_projectile_boss(int x, int y, int active);
+
+void spawn_explosion(int x, int y);
+void spawn_eclair(int x, int y);
+
+void draw_menu_fin(int victoire, int niveau_actuel, int score, BITMAP *img_annonce);
+void reset_game(int *player_x, int *player_y, int *score, int *temps, int *dir, int *niveau);
+void update_menu_fin();
 
 void draw_ui(int score, int time_left, const char *pseudo);
 
