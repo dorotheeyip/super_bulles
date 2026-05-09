@@ -43,7 +43,7 @@ void spawn_eclair(int x, int y);
 
 void draw_menu_fin(int victoire, int niveau_actuel, int score, BITMAP *img_annonce);
 void reset_game(Joueur *joueur, Niveau *niveau, int *niveau_actuel);
-void update_menu_fin();
+void update_menu_fin(float dt);
 
 void draw_ui(int score, int time_left, const char *pseudo);
 

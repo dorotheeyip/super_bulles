@@ -1,7 +1,19 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <allegro.h>
+#ifdef _WIN32
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOGDI
+#define NOGDI
+#endif
+#include <windows.h>
+#else
+#include <sys/time.h>
+#endif
 #include "interface_graphique.h"
 #include "struct.h"
 #include "joueur.h"
@@ -33,6 +45,16 @@ static int lancer_niveau_graphique(Niveau *niveau, Joueur *joueur, float dt, flo
 
     maj_niveau(niveau, joueur, dt);
     return niveau_termine(niveau, joueur);
+}
+
+static double temps_actuel_secondes(void) {
+#ifdef _WIN32
+    return (double)GetTickCount() / 1000.0;
+#else
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    return (double)tv.tv_sec + (double)tv.tv_usec / 1000000.0;
+#endif
 }
 
 int fin_selection = 0;
@@ -85,10 +107,10 @@ int proj_active[NB_PROJ];
 
 #define NB_PROJ_BOSS 5
 
-int proj_boss_x[NB_PROJ_BOSS];
-int proj_boss_y[NB_PROJ_BOSS];
+float proj_boss_x[NB_PROJ_BOSS];
+float proj_boss_y[NB_PROJ_BOSS];
 int proj_boss_active[NB_PROJ_BOSS];
-int cpt_tir_boss = 0;  /* cadence de tir du boss */
+float timer_tir_boss = 0.0f;  /* cadence de tir du boss */
 
 
 int boss_x = 400;
@@ -672,6 +694,7 @@ void reset_game(Joueur *joueur, Niveau *niveau, int *niveau_actuel) {
 
 
         niveau->nb_projectiles = 0;
+
     }
 
     /* Reset projectiles boss */
@@ -681,7 +704,7 @@ void reset_game(Joueur *joueur, Niveau *niveau, int *niveau_actuel) {
         proj_boss_y[i] = 0;
     }
 
-    cpt_tir_boss = 0;
+    timer_tir_boss = 0.0f;
 
     /* Reset bulles */
     if (niveau->bulles.tab) {
@@ -726,9 +749,9 @@ void reset_game(Joueur *joueur, Niveau *niveau, int *niveau_actuel) {
 /* ===== CONSTANTES MENU ======= */
 /* ============================= */
 
-void update_menu_fin() {
+void update_menu_fin(float dt) {
     if (fin_scale < 1.0f) {
-        fin_scale += 0.05f;
+        fin_scale += 2.5f * dt;
         if (fin_scale >= 1.0f) {
             fin_scale = 1.0f;
             fin_anim_done = 1;
@@ -746,7 +769,7 @@ int main() {
 
     srand(time(NULL));
 
-    clock_t last_time = clock();
+    double last_time_sec = temps_actuel_secondes();
 
     EtatJeu etat = ETAT_MENU;
     int selection = 0;
@@ -758,6 +781,11 @@ int main() {
     int victoire = 0;
     int resultat_niveau = -1;
     float timer_tir_auto = 0.0f;
+    int prev_up = 0;
+    int prev_down = 0;
+    int prev_enter = 0;
+    float menu_nav_cooldown = 0.0f;
+    float menu_enter_cooldown = 0.0f;
 
     memset(&joueur, 0, sizeof(Joueur));
     memset(&niveau_struct, 0, sizeof(Niveau));
@@ -765,25 +793,38 @@ int main() {
     reset_game(&joueur, &niveau_struct, &niveau_actuel);
 
     while (!key[KEY_ESC]) {
+        double now_time_sec = temps_actuel_secondes();
+        float frame_dt = (float)(now_time_sec - last_time_sec);
+        last_time_sec = now_time_sec;
+        if (frame_dt < 0.0f) frame_dt = 0.0f;
+        if (frame_dt > 0.1f) frame_dt = 0.1f;
+
+        if (menu_nav_cooldown > 0.0f) menu_nav_cooldown -= frame_dt;
+        if (menu_enter_cooldown > 0.0f) menu_enter_cooldown -= frame_dt;
+
+        int up_pressed = key[KEY_UP] && !prev_up;
+        int down_pressed = key[KEY_DOWN] && !prev_down;
+        int enter_pressed = key[KEY_ENTER] && !prev_enter;
 
         switch (etat) {
 
         /* ================= MENU ================= */
         case ETAT_MENU:
 
-            if (key[KEY_UP]) {
+            if (up_pressed && menu_nav_cooldown <= 0.0f) {
                 selection--;
                 if (selection < 0) selection = NB_OPTIONS - 1;
-                rest(150);
+                menu_nav_cooldown = 0.2f;
             }
 
-            if (key[KEY_DOWN]) {
+            if (down_pressed && menu_nav_cooldown <= 0.0f) {
                 selection++;
                 if (selection >= NB_OPTIONS) selection = 0;
-                rest(150);
+                menu_nav_cooldown = 0.2f;
             }
 
-            if (key[KEY_ENTER]) {
+            if (enter_pressed && menu_enter_cooldown <= 0.0f) {
+                menu_enter_cooldown = 0.2f;
 
                 if (selection == 0) { // Nouvelle partie
                     initialiser_joueur(&joueur, "");
@@ -812,8 +853,6 @@ int main() {
                 else if (selection == 4) { // Quitter
                     return 0;
                 }
-
-                rest(200);
             }
 
             draw_menu(selection);
@@ -943,9 +982,9 @@ int main() {
 
                 update_display();
 
-                if (key[KEY_ENTER]) {
+                if (enter_pressed && menu_enter_cooldown <= 0.0f) {
+                    menu_enter_cooldown = 0.2f;
                     etat = ETAT_MENU;
-                    rest(200);
                 }
 
             break;
@@ -959,19 +998,13 @@ int main() {
 
             draw_background_level(niveau_actuel + 1);
 
-            clock_t current_time = clock();
-
-            float dt = (float)(current_time - last_time) / CLOCKS_PER_SEC;
-
-            last_time = current_time;
-
-            if(dt > 0.1f) dt = 0.1f;
+            float dt = frame_dt;
 
             /* input */
 
             if (key[KEY_LEFT]) {
 
-                deplacer_joueur(&joueur, 0);
+                deplacer_joueur(&joueur, 0, dt);
 
                 dir = -1;
 
@@ -979,7 +1012,7 @@ int main() {
 
             } else if (key[KEY_RIGHT]) {
 
-                deplacer_joueur(&joueur, 1);
+                deplacer_joueur(&joueur, 1, dt);
 
                 dir = 1;
 
@@ -1001,7 +1034,7 @@ int main() {
 
                 if (proj_boss_active[i]) {
 
-                    proj_boss_y[i] += 3;
+                    proj_boss_y[i] += 250.0f * dt;
 
                     if (proj_boss_y[i] > SCREEN_H) proj_boss_active[i] = 0;
 
@@ -1009,21 +1042,21 @@ int main() {
 
             }
 
-            cpt_tir_boss++;
+            timer_tir_boss += dt;
 
-            if (cpt_tir_boss > 50) {
+            if (timer_tir_boss > 0.8f) {
 
                 for (int i = 0; i < NB_PROJ_BOSS; i++) {
 
                     if (!proj_boss_active[i]) {
 
-                        proj_boss_x[i] = (int)niveau_struct.boss.x;
+                        proj_boss_x[i] = niveau_struct.boss.x;
 
-                        proj_boss_y[i] = (int)niveau_struct.boss.y;
+                        proj_boss_y[i] = niveau_struct.boss.y;
 
                         proj_boss_active[i] = 1;
 
-                        cpt_tir_boss = 0;
+                        timer_tir_boss = 0.0f;
 
                         break;
 
@@ -1103,8 +1136,8 @@ int main() {
 
             for(int i = 0; i < NB_PROJ_BOSS; i++) {
 
-                draw_projectile_boss(proj_boss_x[i], proj_boss_y[i], proj_boss_active[i]);
-                draw_projectile_boss_hitbox(proj_boss_x[i], proj_boss_y[i], proj_boss_active[i]);
+                draw_projectile_boss((int)proj_boss_x[i], (int)proj_boss_y[i], proj_boss_active[i]);
+                draw_projectile_boss_hitbox((int)proj_boss_x[i], (int)proj_boss_y[i], proj_boss_active[i]);
 
             }
 
@@ -1130,26 +1163,25 @@ int main() {
 
             case ETAT_FIN: {
 
-                update_menu_fin();
+                update_menu_fin(frame_dt);
                 draw_menu_fin(victoire, niveau_actuel, joueur.score, victoire ? img_victoire : img_defaite);
 
                 if (fin_anim_done) {
 
-                    if (key[KEY_UP]) {
+                    if (up_pressed && menu_nav_cooldown <= 0.0f) {
                         fin_selection = 0;
-                        rest(150);
+                        menu_nav_cooldown = 0.2f;
                     }
 
-                    if (key[KEY_DOWN]) {
+                    if (down_pressed && menu_nav_cooldown <= 0.0f) {
                         fin_selection = 1;
-                        rest(150);
+                        menu_nav_cooldown = 0.2f;
                     }
 
-                    if (key[KEY_ENTER]) {
+                    if (enter_pressed && menu_enter_cooldown <= 0.0f) {
+                        menu_enter_cooldown = 0.2f;
 
                         int choix = fin_selection;
-
-                        rest(200);
 
                         if (choix == 0) {
                             reset_game(&joueur, &niveau_struct, &niveau_actuel);
@@ -1168,6 +1200,10 @@ int main() {
                 break;
             }
         }
+
+        prev_up = key[KEY_UP];
+        prev_down = key[KEY_DOWN];
+        prev_enter = key[KEY_ENTER];
     }
 }
 

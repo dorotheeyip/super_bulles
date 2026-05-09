@@ -8,7 +8,7 @@
 void initialiser_joueur(Joueur* joueur, char* pseudo);
 // Initialise le joueur
 
-void deplacer_joueur(Joueur* joueur, int direction); // direction=0 (gauche), direction=1 (droite)
+void deplacer_joueur(Joueur* joueur, int direction, float dt); // direction=0 (gauche), direction=1 (droite)
 // Déplace le joueur horizontalement
 
 Projectile tirer(Joueur* joueur);

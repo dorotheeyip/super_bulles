@@ -10,12 +10,15 @@ void initialiser_joueur(Joueur* joueur, char* pseudo){ // x,y et tx ty a maj
     joueur->arme=0;
 }
 
-void deplacer_joueur(Joueur* joueur, int direction){
+void deplacer_joueur(Joueur* joueur, int direction, float dt){
+    const float vitesse = 300.0f; /* pixels/seconde */
+    const float deplacement = vitesse * dt;
+
     if(direction==0){
-        joueur->x-=5;
+        joueur->x -= deplacement;
     }
     if(direction==1){
-        joueur->x+=5;
+        joueur->x += deplacement;
     }
 }
 

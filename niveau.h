@@ -37,10 +37,10 @@ int collision_boss_projectile(Boss* boss, Projectile* proj);
 void deplacer_boss(Boss* boss, float dt);
 // Déplace le boss 
 
-void boss_attaque(Boss* boss, ListeBulles* bulles);
+void boss_attaque(Boss* boss, ListeBulles* bulles, float dt);
 // Fait attaquer le boss
 
-void eclair_bulle(Bulle* bulle, Projectile* projectiles, int* nb_projectiles);
+void eclair_bulle(Bulle* bulle, Projectile* projectiles, int* nb_projectiles, float dt);
 // Génère des éclairs provenant des bulles
 
 void liberer_niveau(Niveau* niveau);

@@ -1,6 +1,10 @@
 #include "niveau.h"
 #include "interface_graphique.h"
 
+static float random_unit(void) {
+    return (float)rand() / (float)RAND_MAX;
+}
+
 void initialiser_niveau(Niveau* niveau, int num_niveau){
     printf("num_niveau = %d\n", num_niveau);
 
@@ -98,13 +102,13 @@ void maj_niveau(Niveau* niveau, Joueur* joueur, float dt){
     // boss
     if(niveau->boss.pv > 0){
         deplacer_boss(&niveau->boss, dt);
-        boss_attaque(&niveau->boss, &niveau->bulles);
+        boss_attaque(&niveau->boss, &niveau->bulles, dt);
     }
 
     // éclairs des bulles
     for(int i = 0; i < niveau->bulles.nb; i++){
         if(niveau->bulles.tab[i].type == 1){
-            eclair_bulle(&niveau->bulles.tab[i], niveau->projectiles, &niveau->nb_projectiles);
+            eclair_bulle(&niveau->bulles.tab[i], niveau->projectiles, &niveau->nb_projectiles, dt);
         }
     }
 
@@ -218,8 +222,9 @@ void deplacer_boss(Boss* boss, float dt){
     }
 }
 
-void boss_attaque(Boss* boss, ListeBulles* bulles){
-    if(rand() % 80 == 0){ // fréquence d'apparition
+void boss_attaque(Boss* boss, ListeBulles* bulles, float dt){
+    const float frequence_par_seconde = 0.75f; /* ~1 fois toutes les 1.33s */
+    if(random_unit() < frequence_par_seconde * dt){
         if(bulles->nb < bulles->capacite){
             Bulle b;
             b.x = boss->x;
@@ -236,9 +241,10 @@ void boss_attaque(Boss* boss, ListeBulles* bulles){
     }
 }
 
-void eclair_bulle(Bulle* bulle, Projectile* projectiles, int* nb_projectiles){
+void eclair_bulle(Bulle* bulle, Projectile* projectiles, int* nb_projectiles, float dt){
     if(*nb_projectiles < 20){
-        if(rand() % 120 == 0){ // fréquence plus rare
+        const float frequence_par_seconde = 0.5f; /* ~1 fois toutes les 2s par bulle */
+        if(random_unit() < frequence_par_seconde * dt){
             projectiles[*nb_projectiles].x = bulle->x;
             projectiles[*nb_projectiles].y = bulle->y;
             projectiles[*nb_projectiles].vitesse = 5;
