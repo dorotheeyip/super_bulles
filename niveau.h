@@ -1,13 +1,11 @@
 #ifndef NIVEAU_H
 #define NIVEAU_H
 
-#define SCREEN_W 800
-#define SCREEN_H 600
-
 #include <stdio.h>
 #include <stdlib.h>
 #include "joueur.h"
 #include "struct.h"
+#include "interface_graphique.h"
 
 void initialiser_niveau(Niveau* niveau, int num_niveau);
 // Initialise un niveau 

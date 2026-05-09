@@ -5,7 +5,14 @@ set(CMAKE_C_STANDARD 11)
 
 add_executable(super_bulles
         interface_graphique.c
-        interface_graphique.h)
+        interface_graphique.h
+        joueur.c
+        joueur.h
+        niveau.c
+        niveau.h
+        jeu.c
+        jeu.h
+        struct.h)
 
 if(APPLE)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -L/usr/local/lib -lalleg -lm")

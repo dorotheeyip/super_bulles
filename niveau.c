@@ -1,9 +1,10 @@
 #include "niveau.h"
+#include "interface_graphique.h"
 
 void initialiser_niveau(Niveau* niveau, int num_niveau){
     printf("num_niveau = %d\n", num_niveau);
 
-    int tab_tps_niv[]={5, 5, 5, 5};
+    int tab_tps_niv[]={100, 5, 5, 5};
     int tab_nb_bulles[]={5, 10, 15, 20};
 
     niveau->projectiles = malloc(sizeof(Projectile) * 20);
@@ -42,9 +43,16 @@ void initialiser_niveau(Niveau* niveau, int num_niveau){
 
         niveau->boss.x = SCREEN_W/2;
         niveau->boss.y = 50;
-        niveau->boss.pv = 10;
-        niveau->boss.vitesse = 1;
-    } 
+        niveau->boss.pv = 6;
+        niveau->boss.vitesse = 2;
+    }
+
+    // Always initialize boss position
+    if(num_niveau < 3){
+        niveau->boss.x = SCREEN_W/2;
+        niveau->boss.y = 50;
+        niveau->boss.vitesse = 2;
+    }
 }
  
 void maj_niveau(Niveau* niveau, Joueur* joueur, float dt){
@@ -76,6 +84,7 @@ void maj_niveau(Niveau* niveau, Joueur* joueur, float dt){
             if(niveau->projectiles[j].actif && collision_boss_projectile(&niveau->boss, &niveau->projectiles[j])){
                 niveau->projectiles[j].actif = 0;
                 niveau->boss.pv--;
+                spawn_explosion(niveau->boss.x, niveau->boss.y);
                 niveau->boss.vitesse += 0.2;
             }
         }
@@ -106,6 +115,7 @@ void maj_niveau(Niveau* niveau, Joueur* joueur, float dt){
 int niveau_termine(Niveau* niveau, Joueur* joueur){
     for(int i = 0; i < niveau->bulles.nb; i++){
         if(collision_bulle_joueur(&niveau->bulles.tab[i], joueur)){
+            spawn_explosion(joueur->x, joueur->y);
             return 0; 
         }
     }
@@ -122,7 +132,7 @@ int niveau_termine(Niveau* niveau, Joueur* joueur){
 }
  
 void deplacer_bulle(Bulle* bulle, float dt){ //ajouter gravite
-    float g = 0.3;
+    float g = 1.0;
     bulle->vy += g*dt;
     bulle->x += bulle->vx * dt;
     bulle->y += bulle->vy * dt;
@@ -135,6 +145,7 @@ void deplacer_bulle(Bulle* bulle, float dt){ //ajouter gravite
 void diviser_bulle(Bulle* bulle, ListeBulles* liste){
     if(bulle->r <= 10){
         bulle->actif = 0;
+        spawn_explosion(bulle->x, bulle->y);
         return;
     }
     Bulle nouvelle = *bulle;
@@ -217,9 +228,10 @@ void eclair_bulle(Bulle* bulle, Projectile* projectiles, int* nb_projectiles){
         if(rand() % 120 == 0){ // fréquence plus rare
             projectiles[*nb_projectiles].x = bulle->x;
             projectiles[*nb_projectiles].y = bulle->y;
-            projectiles[*nb_projectiles].vitesse = 250;
+            projectiles[*nb_projectiles].vitesse = 5;
             projectiles[*nb_projectiles].actif = 1;
             (*nb_projectiles)++;
+            spawn_eclair(bulle->x, bulle->y);
         }
     }
 }

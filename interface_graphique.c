@@ -1,7 +1,12 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <allegro.h>
 #include "interface_graphique.h"
+#include "struct.h"
+#include "joueur.h"
+#include "niveau.h"
+#include "jeu.h"
 
 typedef enum {
     ETAT_MENU,
@@ -78,6 +83,10 @@ int boss_moving = 1;
 /* ============================= */
 #define NB_OPTIONS 5
 
+int dir = 1;
+int moving = 0;
+int moving_boss = 0;
+
 BITMAP *buffer = NULL;
 
 /* Sprites */
@@ -119,6 +128,8 @@ int init_graphics() {
     if (set_gfx_mode(GFX_AUTODETECT_FULLSCREEN, 800, 600, 0, 0) != 0) {
         return 0;
     }
+
+    if (!screen) return 0;
 
     buffer = create_bitmap(SCREEN_W, SCREEN_H);
     if (!buffer) return 0;
@@ -320,9 +331,6 @@ void draw_menu(int selection) {
 /* ===== ENTITES =============== */
 /* ============================= */
 
-int moving = 0;
-int moving_boss = 0;
-
 void draw_player(int x, int y, int moving, int dir) {
 
     if (moving) {
@@ -341,6 +349,7 @@ void draw_player(int x, int y, int moving, int dir) {
     int h = frame->h * 3;
 
     BITMAP *tmp = create_bitmap(w, h);
+    if (!tmp) return;
 
     /* Remplir en magenta au lieu de noir */
     clear_to_color(tmp, makecol(255, 0, 255));
@@ -374,6 +383,7 @@ void draw_boss(int x, int y, int moving_boss, int dir) {
     int h = frame->h * 3;
 
     BITMAP *tmp = create_bitmap(w, h);
+    if (!tmp) return;
 
     /* Remplir en magenta au lieu de noir */
     clear_to_color(tmp, makecol(255, 0, 255));
@@ -416,6 +426,7 @@ void draw_explosion(int x, int y, int active, int anim) {
     int h = frame->h * 2;
 
     BITMAP *tmp = create_bitmap(w, h);
+    if (!tmp) return;
     clear_to_color(tmp, makecol(255, 0, 255));
     stretch_sprite(tmp, frame, 0, 0, w, h);
     draw_sprite(buffer, tmp, x, y);
@@ -432,6 +443,7 @@ void draw_eclair(int x, int y, int active, int anim) {
     int h = frame->h * 2;
 
     BITMAP *tmp = create_bitmap(w, h);
+    if (!tmp) return;
     clear_to_color(tmp, makecol(255, 0, 255));
     stretch_sprite(tmp, frame, 0, 0, w, h);
     draw_sprite(buffer, tmp, x, y);
@@ -452,6 +464,7 @@ void draw_projectile(int x, int y, int active) {
     int h = img_projectile->h * 2;
 
     BITMAP *tmp = create_bitmap(w, h);
+    if (!tmp) return;
     clear_to_color(tmp, makecol(255, 0, 255));
 
     stretch_sprite(tmp, img_projectile, 0, 0, w, h);
@@ -474,6 +487,7 @@ void draw_projectile_boss(int x, int y, int active) {
     int h = img_projectile_boss->h * 2;
 
     BITMAP *tmp = create_bitmap(w, h);
+    if (!tmp) return;
     clear_to_color(tmp, makecol(255, 0, 255));
 
     stretch_sprite(tmp, img_projectile_boss, 0, 0, w, h);
@@ -586,26 +600,25 @@ void draw_menu_fin(int victoire, int niveau_actuel, int score, BITMAP *img_annon
     update_display();
 }
 
-void reset_game(int *player_x, int *player_y, int *score, int *temps, int *dir, int *niveau) {
+void reset_game(Joueur *joueur, Niveau *niveau, int *niveau_actuel) {
 
-    *player_x = 100;
-    *player_y = 425;
+    joueur->x = 100;
+    joueur->y = 425;
+    joueur->score = 0;
+    dir = 1;
+    *niveau_actuel = 1;
 
-    *score = 0;
-    *temps = 60;
-    *dir = 1;
-    *niveau = 1;
-
-    boss_x = 400;
-    boss_y = 50;
-    boss_dir = 1;
-    boss_vie = BOSS_VIE_MAX;
+    niveau->boss.x = 400;
+    niveau->boss.y = 50;
+    niveau->boss.vitesse = 2;
+    niveau->boss.pv = BOSS_VIE_MAX;
 
     /* Reset projectiles joueur */
-    for (int i = 0; i < NB_PROJ; i++) {
-        proj_active[i] = 0;
-        proj_x[i] = 0;
-        proj_y[i] = 0;
+    if (niveau->projectiles) {
+        for (int i = 0; i < 20; i++) {
+            niveau->projectiles[i].actif = 0;
+        }
+        niveau->nb_projectiles = 0;
     }
 
     /* Reset projectiles boss */
@@ -618,12 +631,9 @@ void reset_game(int *player_x, int *player_y, int *score, int *temps, int *dir, 
     cpt_tir_boss = 0;
 
     /* Reset bulles */
-    for (int i = 0; i < NB_BULLES; i++) {
-        bulle_active[i] = 0;
-        bulle_x[i] = 0;
-        bulle_y[i] = 0;
+    if (niveau->bulles.tab) {
+        niveau->bulles.nb = 0;
     }
-
     cpt_spawn_bulle = 0;
 
     /* Reset éclairs */
@@ -677,18 +687,28 @@ void update_menu_fin() {
 int main() {
 
     if (!init_graphics()) {
-        allegro_message("Erreur initialisation graphique");
+        printf("Erreur initialisation graphique\n");
         return -1;
     }
 
     srand(time(NULL));
 
+    clock_t last_time = clock();
+
     EtatJeu etat = ETAT_MENU;
     int selection = 0;
 
-    int player_x, player_y, score, temps, dir, niveau;
+    Joueur joueur;
+    Niveau niveau_struct;
+    int niveau_actuel = 1;
+    int mode_charger = 0;
+    int victoire = 0;
+    int key_pressed = 0;
 
-    reset_game(&player_x, &player_y, &score, &temps, &dir, &niveau);
+    memset(&joueur, 0, sizeof(Joueur));
+    memset(&niveau_struct, 0, sizeof(Niveau));
+
+    reset_game(&joueur, &niveau_struct, &niveau_actuel);
 
     while (!key[KEY_ESC]) {
 
@@ -712,11 +732,13 @@ int main() {
             if (key[KEY_ENTER]) {
 
                 if (selection == 0) { // Nouvelle partie
-                    reset_game(&player_x, &player_y, &score, &temps, &dir, &niveau);
+                    initialiser_joueur(&joueur, "");
+                    initialiser_niveau(&niveau_struct, niveau_actuel);
                     etat = ETAT_JEU;
                 }
 
                 else if (selection == 1) {
+                    mode_charger = 1;
                     etat = ETAT_PSEUDO;
                     pseudo_index = 0;
                     pseudo[0] = '\0';
@@ -789,7 +811,20 @@ int main() {
                     int c = readkey() & 0xff;
 
                     if (c == 13) { // ENTER
-                        etat = ETAT_JEU;  // ou chargement futur
+                        if(mode_charger) {
+                            int niv = charger_partie(pseudo, &joueur);
+                            initialiser_joueur(&joueur, pseudo);
+                            if(niv != -1) {
+                                niveau_actuel = niv;
+                            } else {
+                                niveau_actuel = 1;
+                            }
+                        } else {
+                            initialiser_joueur(&joueur, pseudo);
+                        }
+                        initialiser_niveau(&niveau_struct, niveau_actuel);
+                        etat = ETAT_JEU;
+                        mode_charger = 0;
                     }
                     else if (c == 8 && pseudo_index > 0) { // BACKSPACE
                         pseudo_index--;
@@ -805,7 +840,8 @@ int main() {
 
                 update_display();
 
-            } break;
+            break;
+            }
 
             case ETAT_REGLES: {
 
@@ -855,7 +891,8 @@ int main() {
                     rest(200);
                 }
 
-            } break;
+            break;
+            }
 
 
         /* ================= JEU ================= */
@@ -863,227 +900,192 @@ int main() {
 
             clear_screen();
 
-            /* difficulté */
-            if (score >= 100) niveau = 4;
-            else if (score >= 50) niveau = 3;
-            else if (score >= 20) niveau = 2;
-            else niveau = 1;
+            draw_background_level(niveau_actuel);
 
-            draw_background_level(niveau);
+            clock_t current_time = clock();
 
-            int moving = 0;
+            float dt = (float)(current_time - last_time) / CLOCKS_PER_SEC;
 
-            /* déplacement joueur */
-            if (key[KEY_RIGHT]) {
-                player_x += 5;
-                moving = 1;
-                dir = -1;
-            }
+            last_time = current_time;
+
+            if(dt > 0.1f) dt = 0.1f;
+
+            /* input */
 
             if (key[KEY_LEFT]) {
-                player_x -= 5;
+
+                deplacer_joueur(&joueur, 0);
+
+                dir = -1;
+
                 moving = 1;
+
+            } else if (key[KEY_RIGHT]) {
+
+                deplacer_joueur(&joueur, 1);
+
                 dir = 1;
+
+                moving = 1;
+
+            } else {
+
+                moving = 0;
+
             }
 
-            if (player_x < 0) player_x = 0;
-            if (player_x > SCREEN_W - 100) player_x = SCREEN_W - 100;
+            if (joueur.x < 0) joueur.x = 0;
 
-            /* projectiles joueur */
-            for (int i = 0; i < NB_PROJ; i++) {
-                if (proj_active[i]) {
-                    proj_y[i] -= 8;
-                    if (proj_y[i] < -32) proj_active[i] = 0;
+            if (joueur.x > SCREEN_W - 100) joueur.x = SCREEN_W - 100;
+
+            if (key[KEY_SPACE] && !key_pressed) {
+
+                key_pressed = 1;
+
+                if(niveau_struct.nb_projectiles < 20) {
+
+                    niveau_struct.projectiles[niveau_struct.nb_projectiles] = tirer(&joueur);
+
+                    niveau_struct.nb_projectiles++;
+
                 }
+
             }
 
-            int peut_tirer = 1;
-            for (int i = 0; i < NB_PROJ; i++) {
-                if (proj_active[i] && proj_y[i] > player_y - 60) {
-                    peut_tirer = 0;
-                    break;
+            if (!key[KEY_SPACE]) key_pressed = 0;
+
+            /* update boss projectiles */
+
+            for (int i = 0; i < NB_PROJ_BOSS; i++) {
+
+                if (proj_boss_active[i]) {
+
+                    proj_boss_y[i] += 3;
+
+                    if (proj_boss_y[i] > SCREEN_H) proj_boss_active[i] = 0;
+
                 }
+
             }
-
-            if (peut_tirer) {
-                for (int i = 0; i < NB_PROJ; i++) {
-                    if (!proj_active[i]) {
-                        proj_x[i] = player_x + 40;
-                        proj_y[i] = player_y;
-                        proj_active[i] = 1;
-                        break;
-                    }
-                }
-            }
-
-            for (int i = 0; i < NB_PROJ; i++) {
-                draw_projectile(proj_x[i], proj_y[i], proj_active[i]);
-            }
-
-
-            /* bulles + explosions */
-            cpt_spawn_bulle++;
-            if (cpt_spawn_bulle > 60) {
-                cpt_spawn_bulle = 0;
-                for (int i = 0; i < NB_BULLES; i++) {
-                    if (!bulle_active[i]) {
-                        int cote = rand() % 3;
-
-                        if (cote == 0) {
-                            bulle_x[i] = -32;
-                            bulle_y[i] = rand() % (SCREEN_H - 100);
-                            bulle_dx[i] = 2 + rand() % 3;
-                            bulle_dy[i] = 1 + rand() % 2;
-                        }
-                        else if (cote == 1) {
-                            bulle_x[i] = SCREEN_W;
-                            bulle_y[i] = rand() % (SCREEN_H - 100);
-                            bulle_dx[i] = -(2 + rand() % 3);
-                            bulle_dy[i] = 1 + rand() % 2;
-                        }
-                        else {
-                            bulle_x[i] = rand() % (SCREEN_W - 32);
-                            bulle_y[i] = -32;
-                            bulle_dx[i] = 0;
-                            bulle_dy[i] = 2 + rand() % 3;
-                        }
-
-                        bulle_active[i] = 1;
-                        break;
-                    }
-                }
-            }
-            for (int i = 0; i < NB_BULLES; i++) {
-                if (bulle_active[i]) {
-                    bulle_x[i] += bulle_dx[i];
-                    bulle_y[i] += bulle_dy[i];
-
-                    /* Sortie d'écran → désactive sans explosion */
-                    if (bulle_x[i] > SCREEN_W + 32 || bulle_x[i] < -32 || bulle_y[i] > SCREEN_H + 32) {
-                        bulle_active[i] = 0;
-                        continue;
-                    }
-
-                    /* Collision avec un projectile joueur */
-                    for (int p = 0; p < NB_PROJ; p++) {
-                        if (proj_active[p]) {
-                            int dx = proj_x[p] - bulle_x[i];
-                            int dy = proj_y[p] - bulle_y[i];
-                            if (dx > -40 && dx < 40 && dy > -40 && dy < 40) {
-                                proj_active[p] = 0;
-                                bulle_active[i] = 0;
-                                score += 10;
-
-                                spawn_explosion(bulle_x[i], bulle_y[i]);
-                                break;
-                            }
-                        }
-                    }
-
-                    draw_bubble(bulle_x[i], bulle_y[i], bulle_active[i]);
-                }
-            }
-
-
-            /* === EXPLOSIONS === */
-            for (int i = 0; i < NB_EXPLOSIONS; i++) {
-                if (explo_active[i]) {
-                    explo_cpt[i]++;
-                    if (explo_cpt[i] > 2) {
-                        explo_cpt[i] = 0;
-                        explo_anim[i]++;
-                        if (explo_anim[i] >= 7)
-                            explo_active[i] = 0;
-                    }
-                    if (explo_active[i])
-                        draw_explosion(explo_x[i], explo_y[i], explo_active[i], explo_anim[i]);
-                }
-            }
-
-            /* éclairs */
-            cpt_spawn_eclair++;
-            if (cpt_spawn_eclair > 90) {
-                cpt_spawn_eclair = 0;
-
-                for (int b = 0; b < NB_BULLES; b++) {
-                    if (bulle_active[b] && bulle_y[b] < SCREEN_H / 2) {
-
-                        spawn_eclair(bulle_x[b], bulle_y[b]);
-                        break;
-                    }
-                }
-            }
-
-            for (int i = 0; i < NB_ECLAIRS; i++) {
-                if (eclair_active[i]) {
-                    eclair_cpt[i]++;
-                    if (eclair_cpt[i] > 5) {
-                        eclair_cpt[i] = 0;
-                        eclair_anim[i]++;
-                        if (eclair_anim[i] >= 4) {
-                            eclair_active[i] = 0;
-                            continue;
-                        }
-                    }
-                    if (eclair_y[i] < player_y) {
-                        draw_eclair(eclair_x[i], eclair_y[i], eclair_active[i], eclair_anim[i]);
-                    } else {
-                        eclair_active[i] = 0;
-                    }
-                }
-            }
-
-            /* boss */
-            boss_x += boss_dir * 3;
-            moving_boss = 1;
-
-            if (boss_x > SCREEN_W - 150) boss_dir = -1;
-            if (boss_x < 0) boss_dir = 1;
 
             cpt_tir_boss++;
-            if (cpt_tir_boss > 80) {
-                cpt_tir_boss = 0;
+
+            if (cpt_tir_boss > 50) {
 
                 for (int i = 0; i < NB_PROJ_BOSS; i++) {
+
                     if (!proj_boss_active[i]) {
-                        proj_boss_x[i] = boss_x + 60;
-                        proj_boss_y[i] = boss_y + 80;
+
+                        proj_boss_x[i] = (int)niveau_struct.boss.x;
+
+                        proj_boss_y[i] = (int)niveau_struct.boss.y;
+
                         proj_boss_active[i] = 1;
+
+                        cpt_tir_boss = 0;
+
                         break;
+
                     }
+
                 }
+
             }
 
-            /* Déplacement et dessin projectiles boss */
-            for (int i = 0; i < NB_PROJ_BOSS; i++) {
-                if (proj_boss_active[i]) {
-                    proj_boss_y[i] += 6;
-                    if (proj_boss_y[i] > SCREEN_H + 32)
-                        proj_boss_active[i] = 0;
-                    draw_projectile_boss(proj_boss_x[i], proj_boss_y[i], proj_boss_active[i]);
+            /* update */
+
+            maj_niveau(&niveau_struct, &joueur, dt);
+
+            /* check end */
+
+            int res = niveau_termine(&niveau_struct, &joueur);
+
+            if(res == 1) {
+
+                victoire = 1;
+
+                joueur.score += 100;
+
+                niveau_actuel++;
+
+                liberer_niveau(&niveau_struct);
+
+                if(niveau_actuel <= 3) {
+
+                    initialiser_niveau(&niveau_struct, niveau_actuel);
+
+                } else {
+
+                    etat = ETAT_MENU;
+
                 }
+
+            } else if(res == 0) {
+
+                victoire = 0;
+
+                etat = ETAT_FIN;
+
             }
 
-            draw_boss(boss_x, boss_y, moving_boss, boss_dir);
-            draw_boss_vie(boss_vie);
+            /* draw */
 
-            draw_player(player_x, player_y, moving, dir);
-            draw_ui(score, temps, pseudo);
+            draw_player((int)joueur.x, (int)joueur.y, moving, dir);
+
+            if(niveau_struct.boss.pv > 0) {
+
+                boss_dir = (niveau_struct.boss.vitesse > 0) ? 1 : -1;
+
+                boss_moving = 1;
+
+                draw_boss((int)niveau_struct.boss.x, (int)niveau_struct.boss.y, boss_moving, boss_dir);
+
+                draw_boss_vie(niveau_struct.boss.pv);
+
+            }
+
+            for(int i = 0; i < niveau_struct.bulles.nb; i++) {
+
+                draw_bubble((int)niveau_struct.bulles.tab[i].x, (int)niveau_struct.bulles.tab[i].y, niveau_struct.bulles.tab[i].actif);
+
+            }
+
+            for(int i = 0; i < niveau_struct.nb_projectiles; i++) {
+
+                draw_projectile((int)niveau_struct.projectiles[i].x, (int)niveau_struct.projectiles[i].y, niveau_struct.projectiles[i].actif);
+
+            }
+
+            for(int i = 0; i < NB_PROJ_BOSS; i++) {
+
+                draw_projectile_boss(proj_boss_x[i], proj_boss_y[i], proj_boss_active[i]);
+
+            }
+
+            for(int i = 0; i < NB_EXPLOSIONS; i++) {
+
+                draw_explosion(explo_x[i], explo_y[i], explo_active[i], explo_anim[i]);
+
+            }
+
+            for(int i = 0; i < NB_ECLAIRS; i++) {
+
+                draw_eclair(eclair_x[i], eclair_y[i], eclair_active[i], eclair_anim[i]);
+
+            }
+
+            draw_ui(joueur.score, (int)niveau_struct.temps_restant, joueur.pseudo);
 
             update_display();
-            rest(20);
 
-            /* condition de fin */
-            if (score >= 50) etat = ETAT_FIN;
+            rest(16);
 
-        } break;
+            break;
 
-
-        /* ================= FIN ================= */
             case ETAT_FIN: {
 
                 update_menu_fin();
-                draw_menu_fin(1, niveau, score, img_victoire);
+                draw_menu_fin(victoire, niveau_actuel, joueur.score, victoire ? img_victoire : img_defaite);
 
                 if (fin_anim_done) {
 
@@ -1104,10 +1106,11 @@ int main() {
                         rest(200);
 
                         if (choix == 0) {
-                            reset_game(&player_x, &player_y, &score, &temps, &dir, &niveau);
+                            reset_game(&joueur, &niveau_struct, &niveau_actuel);
+                            initialiser_niveau(&niveau_struct, niveau_actuel);
                             etat = ETAT_JEU;
                         } else {
-                            reset_game(&player_x, &player_y, &score, &temps, &dir, &niveau);
+                            sauvegarder_partie(&joueur, niveau_actuel);
                             fin_selection = 0;
                             etat = ETAT_MENU;
                         }
@@ -1116,9 +1119,11 @@ int main() {
 
                 rest(20);
 
-            } break;
+                break;
+            }
         }
     }
+}
 
     destroy_graphics();
     return 0;
