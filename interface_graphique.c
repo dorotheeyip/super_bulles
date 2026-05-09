@@ -20,16 +20,7 @@
 #include "niveau.h"
 #include "jeu.h"
 
-typedef enum {
-    ETAT_MENU,
-    ETAT_JEU,
-    ETAT_FIN,
-    ETAT_REGLES,
-    ETAT_PSEUDO,
-    ETAT_DUO
-} EtatJeu;
-
-static void lancer_partie_graphique(Joueur *joueur, Niveau *niveau, int niveau_depart, int *niveau_courant, int *resultat_niveau) {
+void lancer_partie_graphique(Joueur *joueur, Niveau *niveau, int niveau_depart, int *niveau_courant, int *resultat_niveau) {
     *niveau_courant = niveau_depart;
     *resultat_niveau = -1;
     initialiser_niveau(niveau, *niveau_courant);
@@ -49,7 +40,7 @@ static void ajouter_projectile_joueur(Niveau *niveau, Joueur *joueur) {
     }
 }
 
-static int lancer_niveau_graphique(Niveau *niveau, Joueur *joueur, float dt, float *timer_tir_auto) {
+int lancer_niveau_graphique(Niveau *niveau, Joueur *joueur, float dt, float *timer_tir_auto) {
     *timer_tir_auto += dt;
     if (*timer_tir_auto > 0.1f) {
         ajouter_projectile_joueur(niveau, joueur);
@@ -60,7 +51,7 @@ static int lancer_niveau_graphique(Niveau *niveau, Joueur *joueur, float dt, flo
     return niveau_termine(niveau, joueur);
 }
 
-static double temps_actuel_secondes(void) {
+double temps_actuel_secondes(void) {
 #ifdef _WIN32
     return (double)GetTickCount() / 1000.0;
 #else
@@ -79,8 +70,6 @@ int pseudo_index = 0;
 
 #define NB_BULLES 5
 
-#define NB_ECLAIRS 5
-
 BITMAP *img_eclair[4];
 
 int eclair_x[NB_ECLAIRS];
@@ -89,8 +78,6 @@ int eclair_active[NB_ECLAIRS];
 int eclair_anim[NB_ECLAIRS];   /* frame d'animation par éclair */
 float eclair_cpt[NB_ECLAIRS];  /* timer d'animation par éclair */
 int cpt_spawn_eclair = 0;
-
-#define BOSS_VIE_MAX 6  /* nombre d'états de vie */
 
 BITMAP *img_boss_vie[BOSS_VIE_MAX];
 int boss_vie = BOSS_VIE_MAX;  /* commence à vie pleine */
@@ -101,8 +88,6 @@ int bulle_dx[NB_BULLES]; /* vitesse horizontale */
 int bulle_dy[NB_BULLES]; /* vitesse verticale */
 int bulle_active[NB_BULLES];
 int cpt_spawn_bulle = 0;  /* compteur pour espacer les spawns */
-
-#define NB_EXPLOSIONS 5
 
 BITMAP *img_explosion[7];
 
@@ -118,8 +103,6 @@ int proj_x[NB_PROJ];
 int proj_y[NB_PROJ];
 int proj_active[NB_PROJ];
 
-#define NB_PROJ_BOSS 5
-
 Projectile proj_boss[NB_PROJ_BOSS];
 float timer_tir_boss = 0.0f;  /* cadence de tir du boss */
 
@@ -132,8 +115,6 @@ int boss_moving = 1;
 /* ============================= */
 /* ===== VARIABLES GLOBALES ==== */
 /* ============================= */
-#define NB_OPTIONS 5
-
 int dir = 1;
 int moving = 0;
 int moving_boss = 0;
@@ -302,6 +283,26 @@ void update_display() {
     blit(buffer, screen, 0, 0, 0, 0, SCREEN_W, SCREEN_H);
 }
 
+static void draw_text_outline(BITMAP *dest, FONT *f, const char *text, int x, int y, int color, int bg) {
+    int outline = makecol(0, 0, 0);
+    (void)bg;
+    textout_ex(dest, f, text, x - 1, y, outline, -1);
+    textout_ex(dest, f, text, x + 1, y, outline, -1);
+    textout_ex(dest, f, text, x, y - 1, outline, -1);
+    textout_ex(dest, f, text, x, y + 1, outline, -1);
+    textout_ex(dest, f, text, x, y, color, -1);
+}
+
+void draw_text_centre_outline(BITMAP *dest, FONT *f, const char *text, int x, int y, int color, int bg) {
+    int outline = makecol(0, 0, 0);
+    (void)bg;
+    textout_centre_ex(dest, f, text, x - 1, y, outline, -1);
+    textout_centre_ex(dest, f, text, x + 1, y, outline, -1);
+    textout_centre_ex(dest, f, text, x, y - 1, outline, -1);
+    textout_centre_ex(dest, f, text, x, y + 1, outline, -1);
+    textout_centre_ex(dest, f, text, x, y, color, -1);
+}
+
 
 /* ============================= */
 /* ===== BACKGROUND ============ */
@@ -346,7 +347,7 @@ void draw_menu(int selection) {
         draw_sprite(buffer, img_banner, x, y);
     }
 
-    textout_centre_ex(buffer, font, "SUPER BULLES",
+    draw_text_centre_outline(buffer, font, "SUPER BULLES",
                       SCREEN_W/2, 140, makecol(255,255,255), -1);
 
     /* === AJOUT DES OPTIONS === */
@@ -364,11 +365,11 @@ void draw_menu(int selection) {
         int color;
 
         if (i == selection)
-            color = makecol(255, 0, 0); // option sélectionnée en rouge
+            color = makecol(255, 255, 0); // option sélectionnée en rouge
         else
             color = makecol(255, 255, 255); // blanc
 
-        textout_centre_ex(buffer, font, options[i],
+        draw_text_centre_outline(buffer, font, options[i],
                           SCREEN_W/2,
                           200 + i * 40,
                           color, -1);
@@ -491,8 +492,12 @@ void draw_bubble_hitbox(Bulle* bulle) {
 }
 
 void draw_player_hitbox(Joueur* joueur) {
-    // Draw rectangular hitbox (yellow)
-    rect(buffer, (int)joueur->x, (int)joueur->y, (int)(joueur->x + joueur->tx), (int)(joueur->y + joueur->ty), makecol(255, 255, 0));
+    int cx = (int)(joueur->x + joueur->tx / 2.0f);
+    int cy = (int)(joueur->y + joueur->ty / 2.0f);
+    int rayon = (joueur->tx < joueur->ty ? joueur->tx : joueur->ty) / 2;
+
+    // Draw circular hitbox (yellow)
+    circle(buffer, cx, cy, rayon, makecol(255, 255, 0));
 }
 
 void draw_boss_hitbox(Boss* boss) {
@@ -633,7 +638,7 @@ void spawn_eclair(int x, int y) {
     }
 }
 
-static void update_explosions(float dt) {
+void update_explosions(float dt) {
     const float frame_duration = 0.05f;
     for (int i = 0; i < NB_EXPLOSIONS; i++) {
         if (!explo_active[i]) continue;
@@ -651,7 +656,7 @@ static void update_explosions(float dt) {
     }
 }
 
-static void update_eclairs(float dt) {
+void update_eclairs(float dt) {
     const float frame_duration = 0.06f;
     for (int i = 0; i < NB_ECLAIRS; i++) {
         if (!eclair_active[i]) continue;
@@ -675,17 +680,23 @@ static void update_eclairs(float dt) {
 /* ===== INTERFACE ============= */
 /* ============================= */
 
-void draw_ui(int score, int time_left, const char *pseudo) {
+void draw_ui(int score, int time_left, const char *pseudo, int niveau) {
     char text[100];
+    const int marge = 10;
+    const int ligne1 = SCREEN_H - 50;
+    const int ligne2 = SCREEN_H - 30;
 
-    sprintf(text, "Score : %d", score);
-    textout_ex(buffer, font, text, 10, 10, makecol(255,255,255), -1);
+    sprintf(text, "Score: %d", score);
+    draw_text_outline(buffer, font, text, SCREEN_W - marge - text_length(font, text), ligne1, makecol(255,255,255), -1);
 
-    sprintf(text, "Temps : %d", time_left);
-    textout_ex(buffer, font, text, 10, 30, makecol(255,255,255), -1);
+    sprintf(text, "Temps: %d", time_left);
+    draw_text_outline(buffer, font, text, SCREEN_W - marge - text_length(font, text), ligne2, makecol(255,255,255), -1);
 
-    sprintf(text, "Joueur : %s", pseudo);
-    textout_ex(buffer, font, text, 10, 50, makecol(255,255,255), -1);
+    sprintf(text, "Joueur: %s", pseudo);
+    draw_text_outline(buffer, font, text, marge, ligne1, makecol(255,255,255), -1);
+
+    sprintf(text, "Niveau: %d", niveau);
+    draw_text_outline(buffer, font, text, marge, ligne2, makecol(255,255,255), -1);
 }
 
 
@@ -718,30 +729,26 @@ void draw_menu_fin(int victoire, int niveau_actuel, int score, BITMAP *img_annon
     if (fin_anim_done) {
 
         char msg_score[50];
-        sprintf(msg_score, "SCORE FINAL : %d", score);
-        textout_centre_ex(buffer, font, msg_score,
+        sprintf(msg_score, "SCORE FINAL: %d", score);
+        draw_text_centre_outline(buffer, font, msg_score,
                           SCREEN_W/2, 220,
                           makecol(255,255,255), -1);
 
-        const char *choix[2];
+        const char *choix[4];
+        choix[0] = victoire ? ((niveau_actuel <= 3) ? "NIVEAU SUIVANT" : "REVENIR AU MENU") : "RECOMMENCER";
+        choix[1] = "SAUVEGARDER";
+        choix[2] = "REVENIR AU MENU";
+        choix[3] = "QUITTER PROGRAMME";
 
-        if (victoire) {
-            choix[0] = (niveau_actuel <= 3) ? "NIVEAU SUIVANT" : "REVENIR AU MENU";
-            choix[1] = "REVENIR AU MENU";
-        } else {
-            choix[0] = "RECOMMENCER";
-            choix[1] = "REVENIR AU MENU";
-        }
-
-        for (int i = 0; i < 2; i++) {
+        for (int i = 0; i < 4; i++) {
             int color = (i == fin_selection)
                 ? makecol(255,255,0)
                 : makecol(200,200,200);
 
-            textout_centre_ex(buffer, font,
+            draw_text_centre_outline(buffer, font,
                               choix[i],
                               SCREEN_W/2,
-                              300 + i * 40,
+                              280 + i * 36,
                               color, -1);
         }
     }
@@ -843,455 +850,3 @@ void update_menu_fin(float dt) {
         }
     }
 }
-
-
-int main() {
-
-    if (!init_graphics()) {
-        printf("Erreur initialisation graphique\n");
-        return -1;
-    }
-
-    srand(time(NULL));
-
-    double last_time_sec = temps_actuel_secondes();
-
-    EtatJeu etat = ETAT_MENU;
-    int selection = 0;
-
-    Joueur joueur;
-    Niveau niveau_struct;
-    int niveau_actuel = 0;
-    int mode_charger = 0;
-    int victoire = 0;
-    int resultat_niveau = -1;
-    float timer_tir_auto = 0.0f;
-    int prev_up = 0;
-    int prev_down = 0;
-    int prev_enter = 0;
-    float menu_nav_cooldown = 0.0f;
-    float menu_enter_cooldown = 0.0f;
-
-    memset(&joueur, 0, sizeof(Joueur));
-    memset(&niveau_struct, 0, sizeof(Niveau));
-
-    reset_game(&joueur, &niveau_struct, &niveau_actuel);
-
-    while (!key[KEY_ESC]) {
-        double now_time_sec = temps_actuel_secondes();
-        float frame_dt = (float)(now_time_sec - last_time_sec);
-        last_time_sec = now_time_sec;
-        if (frame_dt < 0.0f) frame_dt = 0.0f;
-        if (frame_dt > 0.1f) frame_dt = 0.1f;
-
-        if (menu_nav_cooldown > 0.0f) menu_nav_cooldown -= frame_dt;
-        if (menu_enter_cooldown > 0.0f) menu_enter_cooldown -= frame_dt;
-
-        int up_pressed = key[KEY_UP] && !prev_up;
-        int down_pressed = key[KEY_DOWN] && !prev_down;
-        int enter_pressed = key[KEY_ENTER] && !prev_enter;
-
-        switch (etat) {
-
-        /* ================= MENU ================= */
-        case ETAT_MENU:
-
-            if (up_pressed && menu_nav_cooldown <= 0.0f) {
-                selection--;
-                if (selection < 0) selection = NB_OPTIONS - 1;
-                menu_nav_cooldown = 0.2f;
-            }
-
-            if (down_pressed && menu_nav_cooldown <= 0.0f) {
-                selection++;
-                if (selection >= NB_OPTIONS) selection = 0;
-                menu_nav_cooldown = 0.2f;
-            }
-
-            if (enter_pressed && menu_enter_cooldown <= 0.0f) {
-                menu_enter_cooldown = 0.2f;
-
-                if (selection == 0) { // Nouvelle partie
-                    initialiser_joueur(&joueur, "");
-                    lancer_partie_graphique(&joueur, &niveau_struct, 0, &niveau_actuel, &resultat_niveau); // remettre à 0
-                    timer_tir_auto = 0.0f;
-                    etat = ETAT_JEU;
-                }
-
-                else if (selection == 1) {
-                    mode_charger = 1;
-                    etat = ETAT_PSEUDO;
-                    pseudo_index = 0;
-                    pseudo[0] = '\0';
-
-                    clear_keybuf();
-                }
-
-                else if (selection == 2) { // MODE DUO
-                    etat = ETAT_DUO;
-                }
-
-                else if (selection == 3) { // REGLES
-                    etat = ETAT_REGLES;
-                }
-
-                else if (selection == 4) { // Quitter
-                    return 0;
-                }
-            }
-
-            draw_menu(selection);
-            break;
-
-            case ETAT_PSEUDO: {
-
-                clear_bitmap(buffer);
-
-                // fond menu
-                if (img_background_menu) {
-                    stretch_blit(img_background_menu, buffer,
-                                 0,0,img_background_menu->w,img_background_menu->h,
-                                 0,0,SCREEN_W,SCREEN_H);
-                }
-
-                // cadre (rectangle)
-                rectfill(buffer,
-                         SCREEN_W/2 - 150,
-                         SCREEN_H/2 - 40,
-                         SCREEN_W/2 + 150,
-                         SCREEN_H/2 + 40,
-                         makecol(200,200,200));
-
-                rect(buffer,
-                     SCREEN_W/2 - 150,
-                     SCREEN_H/2 - 40,
-                     SCREEN_W/2 + 150,
-                     SCREEN_H/2 + 40,
-                     makecol(0,0,0));
-
-                textout_centre_ex(buffer, font,
-                    "ENTRE TON PSEUDO",
-                    SCREEN_W/2, SCREEN_H/2 - 80,
-                    makecol(0,0,0), -1);
-
-                textout_centre_ex(buffer, font,
-                    pseudo,
-                    SCREEN_W/2, SCREEN_H/2 - 10,
-                    makecol(0,0,0), -1);
-
-                textout_centre_ex(buffer, font,
-                    "ENTER pour valider",
-                    SCREEN_W/2, SCREEN_H/2 + 80,
-                    makecol(0,0,0), -1);
-
-                // saisie clavier simple
-                if (keypressed()) {
-
-                    int c = readkey() & 0xff;
-
-                    if (c == 13) { // ENTER
-                        if(mode_charger) {
-                            int niv = charger_partie(pseudo, &joueur);
-                            initialiser_joueur(&joueur, pseudo);
-                            if(niv != -1) {
-                                niveau_actuel = niv;
-                            } else {
-                                niveau_actuel = 0;
-                            }
-                        } else {
-                            initialiser_joueur(&joueur, pseudo);
-                            niveau_actuel = 0;
-                        }
-                        lancer_partie_graphique(&joueur, &niveau_struct, niveau_actuel, &niveau_actuel, &resultat_niveau);
-                        timer_tir_auto = 0.0f;
-                        etat = ETAT_JEU;
-                        mode_charger = 0;
-                    }
-                    else if (c == 8 && pseudo_index > 0) { // BACKSPACE
-                        pseudo_index--;
-                        pseudo[pseudo_index] = '\0';
-                    }
-                    else if (pseudo_index < 19 && c >= 32 && c <= 126) {
-                        pseudo[pseudo_index++] = c;
-                        pseudo[pseudo_index] = '\0';
-                    }
-
-                    rest(50);
-                }
-
-                update_display();
-
-            break;
-            }
-
-            case ETAT_REGLES: {
-
-                clear_bitmap(buffer);
-
-                // fond identique au menu
-                if (img_background_menu) {
-                    stretch_blit(img_background_menu, buffer,
-                                 0,0,img_background_menu->w,img_background_menu->h,
-                                 0,0,SCREEN_W,SCREEN_H);
-                }
-
-                textout_centre_ex(buffer, font,
-                    "REGLES DU JEU",
-                    SCREEN_W/2, 80,
-                    makecol(0,0,0), -1);
-
-                textout_centre_ex(buffer, font,
-                    "- Deplacer le joueur avec LEFT / RIGHT",
-                    SCREEN_W/2, 150,
-                    makecol(0,0,0), -1);
-
-                textout_centre_ex(buffer, font,
-                    "- Tir automatique des projectiles",
-                    SCREEN_W/2, 180,
-                    makecol(0,0,0), -1);
-
-                textout_centre_ex(buffer, font,
-                    "- Detruire les bulles pour gagner des points",
-                    SCREEN_W/2, 210,
-                    makecol(0,0,0), -1);
-
-                textout_centre_ex(buffer, font,
-                    "- Eviter les attaques du boss",
-                    SCREEN_W/2, 240,
-                    makecol(0,0,0), -1);
-
-                textout_centre_ex(buffer, font,
-                    "Appuie sur ENTER pour revenir",
-                    SCREEN_W/2, 320,
-                    makecol(255,255,0), -1);
-
-                update_display();
-
-                if (enter_pressed && menu_enter_cooldown <= 0.0f) {
-                    menu_enter_cooldown = 0.2f;
-                    etat = ETAT_MENU;
-                }
-
-            break;
-            }
-
-
-        /* ================= JEU ================= */
-        case ETAT_JEU: {
-
-            clear_screen();
-
-            draw_background_level(niveau_actuel + 1);
-
-            float dt = frame_dt;
-
-            /* input */
-
-            if (key[KEY_LEFT]) {
-
-                deplacer_joueur(&joueur, 0, dt);
-
-                dir = -1;
-
-                moving = 1;
-
-            } else if (key[KEY_RIGHT]) {
-
-                deplacer_joueur(&joueur, 1, dt);
-
-                dir = 1;
-
-                moving = 1;
-
-            } else {
-
-                moving = 0;
-
-            }
-
-            if (joueur.x < 0) joueur.x = 0;
-
-            if (joueur.x > SCREEN_W - 100) joueur.x = SCREEN_W - 100;
-
-            /* update boss projectiles */
-            int touche_projectile_boss = boss_attaque(&niveau_struct.boss, &niveau_struct.bulles, proj_boss, NB_PROJ_BOSS, &joueur, dt, &timer_tir_boss);
-
-            /* update */
-
-            if(touche_projectile_boss) {
-                resultat_niveau = 0;
-            } else {
-                resultat_niveau = lancer_niveau_graphique(&niveau_struct, &joueur, dt, &timer_tir_auto);
-            }
-            update_explosions(dt);
-            update_eclairs(dt);
-
-            if(resultat_niveau == 1) {
-
-                victoire = 1;
-                if(niveau_struct.temps_restant > 0) {
-                    joueur.score += (int)niveau_struct.temps_restant;
-                }
-
-                fin_niveau(resultat_niveau, &joueur);
-
-                niveau_actuel++;
-
-                liberer_niveau(&niveau_struct);
-
-                timer_tir_auto = 0.0f;
-                etat = ETAT_FIN;
-
-                if(niveau_actuel > 3) {
-                    printf("Partie terminée !\n");
-                }
-
-            } else if(resultat_niveau == 0) {
-
-                victoire = 0;
-
-                fin_niveau(resultat_niveau, &joueur);
-
-                etat = ETAT_FIN;
-
-            }
-
-            if(etat != ETAT_JEU) {
-                rest(16);
-                break;
-            }
-
-            /* draw */
-
-            draw_player((int)joueur.x, (int)joueur.y, moving, dir);
-            draw_player_hitbox(&joueur);
-
-            if(niveau_struct.boss.pv > 0) {
-
-                boss_dir = (niveau_struct.boss.vitesse > 0) ? 1 : -1;
-
-                boss_moving = 1;
-
-                draw_boss((int)niveau_struct.boss.x, (int)niveau_struct.boss.y, boss_moving, boss_dir);
-                draw_boss_hitbox(&niveau_struct.boss);
-
-                draw_boss_vie(niveau_struct.boss.pv);
-
-            }
-
-            for(int i = 0; i < niveau_struct.bulles.nb; i++) {
-
-                draw_bubble(&niveau_struct.bulles.tab[i]);
-                draw_bubble_hitbox(&niveau_struct.bulles.tab[i]);
-
-            }
-
-            for(int i = 0; i < niveau_struct.nb_projectiles; i++) {
-
-                if(niveau_struct.projectiles[i].type != 0) {
-                    draw_eclair_hitbox(&niveau_struct.projectiles[i]);
-                    continue;
-                }
-                draw_projectile((int)niveau_struct.projectiles[i].x, (int)niveau_struct.projectiles[i].y, niveau_struct.projectiles[i].actif);
-                draw_projectile_hitbox(&niveau_struct.projectiles[i]);
-
-            }
-
-            for(int i = 0; i < NB_PROJ_BOSS; i++) {
-
-                draw_projectile_boss((int)proj_boss[i].x, (int)proj_boss[i].y, proj_boss[i].actif);
-                draw_projectile_boss_hitbox((int)proj_boss[i].x, (int)proj_boss[i].y, proj_boss[i].actif);
-
-            }
-
-            for(int i = 0; i < NB_EXPLOSIONS; i++) {
-
-                draw_explosion(explo_x[i], explo_y[i], explo_active[i], explo_anim[i]);
-
-            }
-
-            for(int i = 0; i < NB_ECLAIRS; i++) {
-
-                draw_eclair(eclair_x[i], eclair_y[i], eclair_active[i], eclair_anim[i]);
-
-            }
-
-            draw_ui(joueur.score, (int)niveau_struct.temps_restant, joueur.pseudo);
-
-            update_display();
-
-            rest(16);
-
-            break;
-
-            case ETAT_FIN: {
-
-                update_menu_fin(frame_dt);
-                draw_menu_fin(victoire, niveau_actuel, joueur.score, victoire ? img_victoire : img_defaite);
-
-                if (fin_anim_done) {
-
-                    if (up_pressed && menu_nav_cooldown <= 0.0f) {
-                        fin_selection = 0;
-                        menu_nav_cooldown = 0.2f;
-                    }
-
-                    if (down_pressed && menu_nav_cooldown <= 0.0f) {
-                        fin_selection = 1;
-                        menu_nav_cooldown = 0.2f;
-                    }
-
-                    if (enter_pressed && menu_enter_cooldown <= 0.0f) {
-                        menu_enter_cooldown = 0.2f;
-
-                        int choix = fin_selection;
-
-                        if (choix == 0) {
-                            if (victoire) {
-                                if(niveau_actuel <= 3) {
-                                    initialiser_niveau(&niveau_struct, niveau_actuel);
-                                    timer_tir_auto = 0.0f;
-                                    etat = ETAT_JEU;
-                                } else {
-                                    sauvegarder_partie(&joueur, niveau_actuel);
-                                    fin_selection = 0;
-                                    etat = ETAT_MENU;
-                                }
-                            } else {
-                                liberer_niveau(&niveau_struct);
-                                joueur.x = SCREEN_W/2;
-                                joueur.y = SCREEN_H-170;
-                                dir = 1;
-                                timer_tir_auto = 0.0f;
-                                timer_tir_boss = 0.0f;
-                                for(int i = 0; i < NB_PROJ_BOSS; i++){
-                                    proj_boss[i].actif = 0;
-                                }
-                                initialiser_niveau(&niveau_struct, niveau_actuel);
-                                etat = ETAT_JEU;
-                            }
-                        } else {
-                            sauvegarder_partie(&joueur, niveau_actuel);
-                            fin_selection = 0;
-                            etat = ETAT_MENU;
-                        }
-                    }
-                }
-
-                rest(20);
-
-                break;
-            }
-        }
-
-        prev_up = key[KEY_UP];
-        prev_down = key[KEY_DOWN];
-        prev_enter = key[KEY_ENTER];
-    }
-}
-
-    destroy_graphics();
-    return 0;
-}
-
-END_OF_MAIN();

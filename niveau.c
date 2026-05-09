@@ -9,16 +9,15 @@ static float random_unit(void) {
     return (float)rand() / (float)RAND_MAX;
 }
 
+static float rayon_joueur(Joueur* joueur) {
+    return (joueur->tx < joueur->ty ? joueur->tx : joueur->ty) / 2.0f;
+}
+
 void initialiser_niveau(Niveau* niveau, int num_niveau){
     printf("num_niveau = %d\n", num_niveau);
 
-    int tab_tps_niv[]={100, 100, 100, 100};
-    int tab_nb_bulles[]={5, 10, 15, 10};
-
-
-
-
-
+    int tab_tps_niv[]={50, 70, 70, 100};
+    int tab_nb_bulles[]={5, 7, 7, 10};
 
     niveau->projectiles = malloc(sizeof(Projectile) * 20);
     niveau->nb_projectiles = 0;
@@ -27,6 +26,7 @@ void initialiser_niveau(Niveau* niveau, int num_niveau){
     if(num_niveau < 3){
         niveau->temps_restant = tab_tps_niv[num_niveau];
         niveau->bulles.nb = tab_nb_bulles[num_niveau];
+
         niveau->bulles.capacite = 50;
         niveau->bulles.tab = malloc(sizeof(Bulle) * niveau->bulles.capacite);
         for(int i = 0; i < niveau->bulles.nb; i++){
@@ -259,8 +259,8 @@ int collision_bulle_joueur(Bulle* bulle, Joueur* joueur){
     float dy = bulle->y - joueur_cy;
     float distance = dx*dx + dy*dy;
     
-    // Sum of radii (bubble radius + estimated player radius)
-    float player_radius = (joueur->tx + joueur->ty) / 4.0f;
+    // Sum of radii
+    float player_radius = rayon_joueur(joueur);
     float sum_r = bulle->r + player_radius;
     
     if(distance < sum_r * sum_r){
@@ -281,6 +281,10 @@ int collision_boss_projectile(Boss* boss, Projectile* proj){
 }
 
 int collision_projectile_boss_joueur(Projectile* proj, Joueur* joueur){
+    float joueur_cx = joueur->x + joueur->tx / 2.0f;
+    float joueur_cy = joueur->y + joueur->ty / 2.0f;
+    float player_radius = rayon_joueur(joueur);
+
     if(proj->type == 1){
         if(proj->delai_activation > 0.0f) return 0;
 
@@ -288,27 +292,30 @@ int collision_projectile_boss_joueur(Projectile* proj, Joueur* joueur){
         float droite = proj->x + ECLAIR_HITBOX_LARGEUR / 2.0f;
         float haut = proj->y;
         float bas = proj->y + ECLAIR_HITBOX_HAUTEUR;
+        float closest_x = joueur_cx;
+        float closest_y = joueur_cy;
 
-        if(droite >= joueur->x && gauche <= joueur->x + joueur->tx &&
-           bas >= joueur->y && haut <= joueur->y + joueur->ty){
+        if(closest_x < gauche) closest_x = gauche;
+        if(closest_x > droite) closest_x = droite;
+        if(closest_y < haut) closest_y = haut;
+        if(closest_y > bas) closest_y = bas;
+
+        float dx = joueur_cx - closest_x;
+        float dy = joueur_cy - closest_y;
+        float distance = dx*dx + dy*dy;
+
+        if(distance < player_radius * player_radius){
             return 1;
         }
         return 0;
     }
 
-    float closest_x = proj->x;
-    float closest_y = proj->y;
-
-    if(closest_x < joueur->x) closest_x = joueur->x;
-    if(closest_x > joueur->x + joueur->tx) closest_x = joueur->x + joueur->tx;
-    if(closest_y < joueur->y) closest_y = joueur->y;
-    if(closest_y > joueur->y + joueur->ty) closest_y = joueur->y + joueur->ty;
-
-    float dx = proj->x - closest_x;
-    float dy = proj->y - closest_y;
+    float dx = proj->x - joueur_cx;
+    float dy = proj->y - joueur_cy;
     float distance = dx*dx + dy*dy;
+    float sum_r = RAYON_HITBOX_PROJECTILE_BOSS + player_radius;
 
-    if(distance < RAYON_HITBOX_PROJECTILE_BOSS * RAYON_HITBOX_PROJECTILE_BOSS){
+    if(distance < sum_r * sum_r){
         return 1;
     }
     return 0;
