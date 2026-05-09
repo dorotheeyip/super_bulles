@@ -44,6 +44,9 @@ int lancer_niveau(int num_niveau, Joueur* joueur){
         printf("Temps restant: %.2f | Bulles: %d | Projectiles: %d\n", niveau.temps_restant, niveau.bulles.nb, niveau.nb_projectiles);
     }
     int resultat = niveau_termine(&niveau, joueur);
+    if(resultat == 1 && niveau.temps_restant > 0){
+        joueur->score += (int)niveau.temps_restant;
+    }
     liberer_niveau(&niveau);
     return resultat;
 }
@@ -51,7 +54,6 @@ int lancer_niveau(int num_niveau, Joueur* joueur){
 
 void fin_niveau(int resultat, Joueur* joueur){
     if(resultat == 1){
-        joueur->score += 100;
         printf("Niveau réussi !\n");
     }
     else if(resultat == 0){

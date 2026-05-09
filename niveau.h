@@ -7,6 +7,13 @@
 #include "struct.h"
 #include "interface_graphique.h"
 
+#define BOSS_PV_MAX 25
+#define RAYON_HITBOX_PROJECTILE_BOSS 30.0f
+#define ECLAIR_HITBOX_LARGEUR 24.0f
+#define ECLAIR_HITBOX_HAUTEUR 240.0f
+#define ECLAIR_DUREE_VIE 0.24f
+#define ECLAIR_DELAI_HITBOX 0.08f
+
 void initialiser_niveau(Niveau* niveau, int num_niveau);
 // Initialise un niveau 
 
@@ -28,17 +35,17 @@ int collision_bulle_projectile(Bulle* bulle, Projectile* proj);
 int collision_bulle_joueur(Bulle* bulle, Joueur* joueur);
 // Vérifie la collision entre une bulle et le joueur 
 
-int collision_bulle_bulle(Bulle* bulle1, Bulle* bulle2);
-// Vérifie la collision entre deux bulles
-
 int collision_boss_projectile(Boss* boss, Projectile* proj);
 // Retourne 1 si le projectile touche le boss
+
+int collision_projectile_boss_joueur(Projectile* proj, Joueur* joueur);
+// Vérifie la collision entre un projectile du boss et le joueur
 
 void deplacer_boss(Boss* boss, float dt);
 // Déplace le boss 
 
-void boss_attaque(Boss* boss, ListeBulles* bulles, float dt);
-// Fait attaquer le boss
+int boss_attaque(Boss* boss, ListeBulles* bulles, Projectile* projectiles, int nb_projectiles, Joueur* joueur, float dt, float* timer_tir);
+// Déplace et génère les attaques du boss, retourne 1 si le joueur est touché
 
 void eclair_bulle(Bulle* bulle, Projectile* projectiles, int* nb_projectiles, float dt);
 // Génère des éclairs provenant des bulles

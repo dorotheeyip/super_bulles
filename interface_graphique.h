@@ -30,7 +30,7 @@ void draw_player(int x, int y, int moving, int dir);
 void draw_boss(int x, int y, int moving_boss, int dir);
 void draw_boss_vie(int vie);
 
-void draw_bubble(int x, int y, int active);
+void draw_bubble(Bulle *bulle);
 
 void draw_explosion(int x, int y, int active, int anim);
 void draw_eclair(int x, int y, int active, int anim);

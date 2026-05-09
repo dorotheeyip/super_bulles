@@ -35,11 +35,24 @@ static void lancer_partie_graphique(Joueur *joueur, Niveau *niveau, int niveau_d
     initialiser_niveau(niveau, *niveau_courant);
 }
 
-static int lancer_niveau_graphique(Niveau *niveau, Joueur *joueur, float dt, float *timer_tir_auto) {
-    *timer_tir_auto += dt;
-    if (*timer_tir_auto > 0.5f && niveau->nb_projectiles < 20) {
+static void ajouter_projectile_joueur(Niveau *niveau, Joueur *joueur) {
+    for (int i = 0; i < niveau->nb_projectiles; i++) {
+        if (!niveau->projectiles[i].actif) {
+            niveau->projectiles[i] = tirer(joueur);
+            return;
+        }
+    }
+
+    if (niveau->nb_projectiles < 20) {
         niveau->projectiles[niveau->nb_projectiles] = tirer(joueur);
         niveau->nb_projectiles++;
+    }
+}
+
+static int lancer_niveau_graphique(Niveau *niveau, Joueur *joueur, float dt, float *timer_tir_auto) {
+    *timer_tir_auto += dt;
+    if (*timer_tir_auto > 0.1f) {
+        ajouter_projectile_joueur(niveau, joueur);
         *timer_tir_auto = 0.0f;
     }
 
@@ -74,7 +87,7 @@ int eclair_x[NB_ECLAIRS];
 int eclair_y[NB_ECLAIRS];
 int eclair_active[NB_ECLAIRS];
 int eclair_anim[NB_ECLAIRS];   /* frame d'animation par éclair */
-int eclair_cpt[NB_ECLAIRS];    /* compteur animation par éclair */
+float eclair_cpt[NB_ECLAIRS];  /* timer d'animation par éclair */
 int cpt_spawn_eclair = 0;
 
 #define BOSS_VIE_MAX 6  /* nombre d'états de vie */
@@ -97,7 +110,7 @@ int explo_x[NB_EXPLOSIONS];
 int explo_y[NB_EXPLOSIONS];
 int explo_active[NB_EXPLOSIONS];
 int explo_anim[NB_EXPLOSIONS];
-int explo_cpt[NB_EXPLOSIONS];
+float explo_cpt[NB_EXPLOSIONS];
 
 #define NB_PROJ 10 /* nombre de projectiles simultanés */
 
@@ -107,9 +120,7 @@ int proj_active[NB_PROJ];
 
 #define NB_PROJ_BOSS 5
 
-float proj_boss_x[NB_PROJ_BOSS];
-float proj_boss_y[NB_PROJ_BOSS];
-int proj_boss_active[NB_PROJ_BOSS];
+Projectile proj_boss[NB_PROJ_BOSS];
 float timer_tir_boss = 0.0f;  /* cadence de tir du boss */
 
 
@@ -397,9 +408,9 @@ void draw_player(int x, int y, int moving, int dir) {
     stretch_sprite(tmp, frame, 0, 0, w, h);
 
     if (dir == 1) {
-        draw_sprite(buffer, tmp, x, y);
-    } else {
         draw_sprite_h_flip(buffer, tmp, x, y);
+    } else {
+        draw_sprite(buffer, tmp, x, y);
     }
 
     destroy_bitmap(tmp);
@@ -431,28 +442,44 @@ void draw_boss(int x, int y, int moving_boss, int dir) {
     stretch_sprite(tmp, frame, 0, 0, w, h);
 
     if (dir == 1) {
-        draw_sprite(buffer, tmp, x, y);
+        draw_sprite(buffer, tmp, x - w/2, y - h/2);
     } else {
-        draw_sprite_h_flip(buffer, tmp, x, y);
+        draw_sprite_h_flip(buffer, tmp, x - w/2, y - h/2);
     }
 
     destroy_bitmap(tmp);
 }
 
 void draw_boss_vie(int vie) {
-    if (vie <= 0 || vie > BOSS_VIE_MAX) return;
+    if (vie <= 0) return;
+    if (vie > BOSS_PV_MAX) vie = BOSS_PV_MAX;
 
-    /* index = vie pleine → image 0, vie presque morte → image 3 */
-    int index = BOSS_VIE_MAX - vie;
+    /* index = vie pleine -> image 0, vie presque morte -> dernière image */
+    int index = ((BOSS_PV_MAX - vie) * BOSS_VIE_MAX) / BOSS_PV_MAX;
+    if (index >= BOSS_VIE_MAX) index = BOSS_VIE_MAX - 1;
+
     BITMAP *img = img_boss_vie[index];
 
     if (img)
         draw_sprite(buffer, img, (SCREEN_W - img->w) / 2, 10);
 }
 
-void draw_bubble(int x, int y, int active) {
-    if (active && img_bubble) {
-        draw_sprite(buffer, img_bubble, x, y);
+void draw_bubble(Bulle *bulle) {
+    if (!bulle || !bulle->actif || !img_bubble) return;
+
+    /* The bubble position is its center; draw sprite centered and scaled to hitbox diameter. */
+    int diametre = bulle->r * 2;
+    int x = (int)(bulle->x - bulle->r);
+    int y = (int)(bulle->y - bulle->r);
+
+    stretch_sprite(buffer, img_bubble, x, y, diametre, diametre);
+
+    if(bulle->charge_eclair){
+        int clignote = ((int)(bulle->timer_eclair * 12.0f)) % 2;
+        if(clignote){
+            circlefill(buffer, (int)bulle->x, (int)bulle->y, bulle->r, makecol(255, 230, 0));
+            circle(buffer, (int)bulle->x, (int)bulle->y, bulle->r, makecol(255, 0, 0));
+        }
     }
 }
 
@@ -483,8 +510,21 @@ void draw_projectile_hitbox(Projectile* proj) {
 void draw_projectile_boss_hitbox(int x, int y, int active) {
     if (!active) return;
     
-    // Draw circular hitbox (purple) with radius 5
-    circle(buffer, x, y, 5, makecol(255, 0, 255));
+    // Draw circular hitbox (purple)
+    circle(buffer, x, y, (int)RAYON_HITBOX_PROJECTILE_BOSS, makecol(255, 0, 255));
+}
+
+void draw_eclair_hitbox(Projectile* proj) {
+    if (!proj->actif) return;
+    if (proj->delai_activation > 0.0f) return;
+
+    // Draw rectangular hitbox (red)
+    rect(buffer,
+         (int)(proj->x - ECLAIR_HITBOX_LARGEUR / 2.0f),
+         (int)proj->y,
+         (int)(proj->x + ECLAIR_HITBOX_LARGEUR / 2.0f),
+         (int)(proj->y + ECLAIR_HITBOX_HAUTEUR),
+         makecol(255, 0, 0));
 }
 
 void draw_explosion(int x, int y, int active, int anim) {
@@ -493,14 +533,14 @@ void draw_explosion(int x, int y, int active, int anim) {
     BITMAP *frame = img_explosion[anim];
     if (!frame) return;
 
-    int w = frame->w * 2;
-    int h = frame->h * 2;
+    int w = frame->w;
+    int h = frame->h;
 
     BITMAP *tmp = create_bitmap(w, h);
     if (!tmp) return;
     clear_to_color(tmp, makecol(255, 0, 255));
     stretch_sprite(tmp, frame, 0, 0, w, h);
-    draw_sprite(buffer, tmp, x, y);
+    draw_sprite(buffer, tmp, x - w/2, y - h/2);
     destroy_bitmap(tmp);
 }
 
@@ -517,7 +557,7 @@ void draw_eclair(int x, int y, int active, int anim) {
     if (!tmp) return;
     clear_to_color(tmp, makecol(255, 0, 255));
     stretch_sprite(tmp, frame, 0, 0, w, h);
-    draw_sprite(buffer, tmp, x, y);
+    draw_sprite(buffer, tmp, x-w/2, y);
     destroy_bitmap(tmp);
 }
 
@@ -539,7 +579,7 @@ void draw_projectile(int x, int y, int active) {
     clear_to_color(tmp, makecol(255, 0, 255));
 
     stretch_sprite(tmp, img_projectile, 0, 0, w, h);
-    draw_sprite(buffer, tmp, x, y);
+    draw_sprite(buffer, tmp, x - w/2, y - h/2);
 
     destroy_bitmap(tmp);
 }
@@ -562,7 +602,7 @@ void draw_projectile_boss(int x, int y, int active) {
     clear_to_color(tmp, makecol(255, 0, 255));
 
     stretch_sprite(tmp, img_projectile_boss, 0, 0, w, h);
-    draw_sprite(buffer, tmp, x, y);
+    draw_sprite(buffer, tmp, x-w/2, y-h/2);
 
     destroy_bitmap(tmp);
 }
@@ -593,6 +633,42 @@ void spawn_eclair(int x, int y) {
     }
 }
 
+static void update_explosions(float dt) {
+    const float frame_duration = 0.05f;
+    for (int i = 0; i < NB_EXPLOSIONS; i++) {
+        if (!explo_active[i]) continue;
+        explo_cpt[i] += dt;
+        while (explo_cpt[i] >= frame_duration) {
+            explo_cpt[i] -= frame_duration;
+            explo_anim[i]++;
+            if (explo_anim[i] >= 7) {
+                explo_active[i] = 0;
+                explo_anim[i] = 0;
+                explo_cpt[i] = 0.0f;
+                break;
+            }
+        }
+    }
+}
+
+static void update_eclairs(float dt) {
+    const float frame_duration = 0.06f;
+    for (int i = 0; i < NB_ECLAIRS; i++) {
+        if (!eclair_active[i]) continue;
+        eclair_cpt[i] += dt;
+        while (eclair_cpt[i] >= frame_duration) {
+            eclair_cpt[i] -= frame_duration;
+            eclair_anim[i]++;
+            if (eclair_anim[i] >= 4) {
+                eclair_active[i] = 0;
+                eclair_anim[i] = 0;
+                eclair_cpt[i] = 0.0f;
+                break;
+            }
+        }
+    }
+}
+
 
 
 /* ============================= */
@@ -619,7 +695,9 @@ void draw_ui(int score, int time_left, const char *pseudo) {
 
 void draw_menu_fin(int victoire, int niveau_actuel, int score, BITMAP *img_annonce) {
 
-    draw_background_level(niveau_actuel + 1);
+    int niveau_fond = niveau_actuel;
+    if(niveau_fond > 3) niveau_fond = 3;
+    draw_background_level(niveau_fond + 1);
 
     set_trans_blender(0, 0, 0, 128);
     drawing_mode(DRAW_MODE_TRANS, NULL, 0, 0);
@@ -648,7 +726,7 @@ void draw_menu_fin(int victoire, int niveau_actuel, int score, BITMAP *img_annon
         const char *choix[2];
 
         if (victoire) {
-            choix[0] = "NIVEAU SUIVANT";
+            choix[0] = (niveau_actuel <= 3) ? "NIVEAU SUIVANT" : "REVENIR AU MENU";
             choix[1] = "REVENIR AU MENU";
         } else {
             choix[0] = "RECOMMENCER";
@@ -681,13 +759,16 @@ void reset_game(Joueur *joueur, Niveau *niveau, int *niveau_actuel) {
 
     niveau->boss.x = 400;
     niveau->boss.y = 50;
-    niveau->boss.vitesse = 2;
-    niveau->boss.pv = BOSS_VIE_MAX;
+    niveau->boss.vitesse = 0;
+    niveau->boss.pv = 0;
 
     /* Reset projectiles joueur */
     if (niveau->projectiles) {
         for (int i = 0; i < 20; i++) {
             niveau->projectiles[i].actif = 0;
+            niveau->projectiles[i].type = 0;
+            niveau->projectiles[i].duree_vie = 0.0f;
+            niveau->projectiles[i].delai_activation = 0.0f;
 
         }
 
@@ -699,9 +780,13 @@ void reset_game(Joueur *joueur, Niveau *niveau, int *niveau_actuel) {
 
     /* Reset projectiles boss */
     for (int i = 0; i < NB_PROJ_BOSS; i++) {
-        proj_boss_active[i] = 0;
-        proj_boss_x[i] = 0;
-        proj_boss_y[i] = 0;
+        proj_boss[i].actif = 0;
+        proj_boss[i].x = 0;
+        proj_boss[i].y = 0;
+        proj_boss[i].vitesse = 0;
+        proj_boss[i].duree_vie = 0.0f;
+        proj_boss[i].delai_activation = 0.0f;
+        proj_boss[i].type = 2;
     }
 
     timer_tir_boss = 0.0f;
@@ -828,7 +913,7 @@ int main() {
 
                 if (selection == 0) { // Nouvelle partie
                     initialiser_joueur(&joueur, "");
-                    lancer_partie_graphique(&joueur, &niveau_struct, 0, &niveau_actuel, &resultat_niveau);
+                    lancer_partie_graphique(&joueur, &niveau_struct, 0, &niveau_actuel, &resultat_niveau); // remettre à 0
                     timer_tir_auto = 0.0f;
                     etat = ETAT_JEU;
                 }
@@ -1029,50 +1114,24 @@ int main() {
             if (joueur.x > SCREEN_W - 100) joueur.x = SCREEN_W - 100;
 
             /* update boss projectiles */
-
-            for (int i = 0; i < NB_PROJ_BOSS; i++) {
-
-                if (proj_boss_active[i]) {
-
-                    proj_boss_y[i] += 250.0f * dt;
-
-                    if (proj_boss_y[i] > SCREEN_H) proj_boss_active[i] = 0;
-
-                }
-
-            }
-
-            timer_tir_boss += dt;
-
-            if (timer_tir_boss > 0.8f) {
-
-                for (int i = 0; i < NB_PROJ_BOSS; i++) {
-
-                    if (!proj_boss_active[i]) {
-
-                        proj_boss_x[i] = niveau_struct.boss.x;
-
-                        proj_boss_y[i] = niveau_struct.boss.y;
-
-                        proj_boss_active[i] = 1;
-
-                        timer_tir_boss = 0.0f;
-
-                        break;
-
-                    }
-
-                }
-
-            }
+            int touche_projectile_boss = boss_attaque(&niveau_struct.boss, &niveau_struct.bulles, proj_boss, NB_PROJ_BOSS, &joueur, dt, &timer_tir_boss);
 
             /* update */
 
-            resultat_niveau = lancer_niveau_graphique(&niveau_struct, &joueur, dt, &timer_tir_auto);
+            if(touche_projectile_boss) {
+                resultat_niveau = 0;
+            } else {
+                resultat_niveau = lancer_niveau_graphique(&niveau_struct, &joueur, dt, &timer_tir_auto);
+            }
+            update_explosions(dt);
+            update_eclairs(dt);
 
             if(resultat_niveau == 1) {
 
                 victoire = 1;
+                if(niveau_struct.temps_restant > 0) {
+                    joueur.score += (int)niveau_struct.temps_restant;
+                }
 
                 fin_niveau(resultat_niveau, &joueur);
 
@@ -1080,16 +1139,11 @@ int main() {
 
                 liberer_niveau(&niveau_struct);
 
-                if(niveau_actuel <= 3) {
+                timer_tir_auto = 0.0f;
+                etat = ETAT_FIN;
 
-                    initialiser_niveau(&niveau_struct, niveau_actuel);
-                    timer_tir_auto = 0.0f;
-
-                } else {
-
+                if(niveau_actuel > 3) {
                     printf("Partie terminée !\n");
-                    etat = ETAT_MENU;
-
                 }
 
             } else if(resultat_niveau == 0) {
@@ -1100,6 +1154,11 @@ int main() {
 
                 etat = ETAT_FIN;
 
+            }
+
+            if(etat != ETAT_JEU) {
+                rest(16);
+                break;
             }
 
             /* draw */
@@ -1122,13 +1181,17 @@ int main() {
 
             for(int i = 0; i < niveau_struct.bulles.nb; i++) {
 
-                draw_bubble((int)niveau_struct.bulles.tab[i].x, (int)niveau_struct.bulles.tab[i].y, niveau_struct.bulles.tab[i].actif);
+                draw_bubble(&niveau_struct.bulles.tab[i]);
                 draw_bubble_hitbox(&niveau_struct.bulles.tab[i]);
 
             }
 
             for(int i = 0; i < niveau_struct.nb_projectiles; i++) {
 
+                if(niveau_struct.projectiles[i].type != 0) {
+                    draw_eclair_hitbox(&niveau_struct.projectiles[i]);
+                    continue;
+                }
                 draw_projectile((int)niveau_struct.projectiles[i].x, (int)niveau_struct.projectiles[i].y, niveau_struct.projectiles[i].actif);
                 draw_projectile_hitbox(&niveau_struct.projectiles[i]);
 
@@ -1136,8 +1199,8 @@ int main() {
 
             for(int i = 0; i < NB_PROJ_BOSS; i++) {
 
-                draw_projectile_boss((int)proj_boss_x[i], (int)proj_boss_y[i], proj_boss_active[i]);
-                draw_projectile_boss_hitbox((int)proj_boss_x[i], (int)proj_boss_y[i], proj_boss_active[i]);
+                draw_projectile_boss((int)proj_boss[i].x, (int)proj_boss[i].y, proj_boss[i].actif);
+                draw_projectile_boss_hitbox((int)proj_boss[i].x, (int)proj_boss[i].y, proj_boss[i].actif);
 
             }
 
@@ -1184,9 +1247,29 @@ int main() {
                         int choix = fin_selection;
 
                         if (choix == 0) {
-                            reset_game(&joueur, &niveau_struct, &niveau_actuel);
-                            initialiser_niveau(&niveau_struct, niveau_actuel);
-                            etat = ETAT_JEU;
+                            if (victoire) {
+                                if(niveau_actuel <= 3) {
+                                    initialiser_niveau(&niveau_struct, niveau_actuel);
+                                    timer_tir_auto = 0.0f;
+                                    etat = ETAT_JEU;
+                                } else {
+                                    sauvegarder_partie(&joueur, niveau_actuel);
+                                    fin_selection = 0;
+                                    etat = ETAT_MENU;
+                                }
+                            } else {
+                                liberer_niveau(&niveau_struct);
+                                joueur.x = SCREEN_W/2;
+                                joueur.y = SCREEN_H-170;
+                                dir = 1;
+                                timer_tir_auto = 0.0f;
+                                timer_tir_boss = 0.0f;
+                                for(int i = 0; i < NB_PROJ_BOSS; i++){
+                                    proj_boss[i].actif = 0;
+                                }
+                                initialiser_niveau(&niveau_struct, niveau_actuel);
+                                etat = ETAT_JEU;
+                            }
                         } else {
                             sauvegarder_partie(&joueur, niveau_actuel);
                             fin_selection = 0;
