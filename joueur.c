@@ -9,6 +9,7 @@ void initialiser_joueur(Joueur* joueur, char* pseudo){ // x,y et tx ty a maj
     joueur->score=0;
     joueur->arme=0;
     joueur->buff_tir_timer=0.0f;
+    joueur->stun_timer=0.0f;
 }
 
 void deplacer_joueur(Joueur* joueur, int direction, float dt){
@@ -29,6 +30,7 @@ Projectile tirer(Joueur* joueur){
     proj.y=joueur->y;
     proj.actif=1;
     proj.type=0;
+    proj.proprietaire=1;
     proj.duree_vie=0.0f;
     proj.delai_activation=0.0f;
     if(joueur->arme==0){

@@ -40,6 +40,7 @@ void initialiser_niveau(Niveau* niveau, int num_niveau){
         niveau->bulles.capacite = 50;
         niveau->bulles.tab = malloc(sizeof(Bulle) * niveau->bulles.capacite);
         for(int i = 0; i < niveau->bulles.nb; i++){
+
             niveau->bulles.tab[i].r = 50;
             niveau->bulles.tab[i].x = (float)(niveau->bulles.tab[i].r + rand() % (SCREEN_W - 2 * niveau->bulles.tab[i].r));
             niveau->bulles.tab[i].y = 50;
@@ -48,6 +49,7 @@ void initialiser_niveau(Niveau* niveau, int num_niveau){
             niveau->bulles.tab[i].vy = 160;
             niveau->bulles.tab[i].tx = 60;
             niveau->bulles.tab[i].ty = 60;
+
             if (num_niveau >= 2 && i % 3 == 0) niveau->bulles.tab[i].type = 1;
             else niveau->bulles.tab[i].type = 0;
             niveau->bulles.tab[i].actif = (i == 0) ? 1 : 0;
@@ -211,6 +213,116 @@ void maj_niveau(Niveau* niveau, Joueur* joueur, float dt){
     }
 
     // temps
+    niveau->temps_restant -= dt;
+}
+
+void maj_niveau_duel(Niveau* niveau, Joueur* joueur1, Joueur* joueur2, float dt){
+    if(joueur1->buff_tir_timer > 0.0f){
+        joueur1->buff_tir_timer -= dt;
+        if(joueur1->buff_tir_timer <= 0.0f){
+            joueur1->buff_tir_timer = 0.0f;
+            joueur1->arme = 0;
+        }
+    }
+    if(joueur2->buff_tir_timer > 0.0f){
+        joueur2->buff_tir_timer -= dt;
+        if(joueur2->buff_tir_timer <= 0.0f){
+            joueur2->buff_tir_timer = 0.0f;
+            joueur2->arme = 0;
+        }
+    }
+
+    for(int i = 0; i < niveau->bulles.nb; i++){
+        if(!niveau->bulles.tab[i].actif){
+            niveau->bulles.tab[i].delai_spawn -= dt;
+            if(niveau->bulles.tab[i].delai_spawn <= 0.0f){
+                niveau->bulles.tab[i].actif = 1;
+                niveau->bulles.tab[i].delai_spawn = 0.0f;
+            }
+        }
+        deplacer_bulle(&niveau->bulles.tab[i], dt);
+    }
+
+    for(int i = 0; i < niveau->nb_projectiles; i++){
+        if(niveau->projectiles[i].actif){
+            if(niveau->projectiles[i].type == 1){
+                niveau->projectiles[i].duree_vie -= dt;
+                if(niveau->projectiles[i].delai_activation > 0.0f){
+                    niveau->projectiles[i].delai_activation -= dt;
+                }
+                if(niveau->projectiles[i].duree_vie <= 0.0f){
+                    niveau->projectiles[i].actif = 0;
+                }
+            }
+            else niveau->projectiles[i].y -= niveau->projectiles[i].vitesse * dt;
+            if(niveau->projectiles[i].y < 0 || niveau->projectiles[i].y > SCREEN_H){
+                niveau->projectiles[i].actif = 0;
+            }
+        }
+    }
+
+    for(int i = 0; i < niveau->bulles.nb; i++){
+        if(!niveau->bulles.tab[i].actif) continue;
+        for(int j = 0; j < niveau->nb_projectiles; j++){
+            if(niveau->projectiles[j].actif && niveau->projectiles[j].type == 0 && collision_bulle_projectile(&niveau->bulles.tab[i], &niveau->projectiles[j])){
+                float drop_x = niveau->bulles.tab[i].x;
+                float drop_y = niveau->bulles.tab[i].y;
+                int proprietaire = niveau->projectiles[j].proprietaire;
+                niveau->projectiles[j].actif = 0;
+                if(proprietaire == 2) joueur2->score += 5;
+                else joueur1->score += 5;
+                creer_buff_tir_rapide(niveau, drop_x, drop_y);
+                diviser_bulle(&niveau->bulles.tab[i], &niveau->bulles);
+                break;
+            }
+        }
+        if(niveau->bulles.tab[i].actif == 0){
+            niveau->bulles.tab[i] = niveau->bulles.tab[niveau->bulles.nb - 1];
+            niveau->bulles.nb--;
+            i--;
+        }
+    }
+
+    if(niveau->boss.pv > 0){
+        for(int j = 0; j < niveau->nb_projectiles; j++){
+            if(niveau->projectiles[j].actif && niveau->projectiles[j].type == 0 && collision_boss_projectile(&niveau->boss, &niveau->projectiles[j])){
+                int proprietaire = niveau->projectiles[j].proprietaire;
+                niveau->projectiles[j].actif = 0;
+                niveau->boss.pv--;
+                if(proprietaire == 2) joueur2->score += 5;
+                else joueur1->score += 5;
+                spawn_explosion(niveau->boss.x, niveau->boss.y);
+                if(niveau->boss.vitesse < 0) niveau->boss.vitesse -= BOSS_ACCELERATION;
+                else niveau->boss.vitesse += BOSS_ACCELERATION;
+            }
+        }
+        deplacer_boss(&niveau->boss, dt);
+    }
+
+    for(int i = 0; i < niveau->nb_buffs; i++){
+        if(!niveau->buffs[i].actif) continue;
+
+        niveau->buffs[i].y += niveau->buffs[i].vitesse * dt;
+
+        if(collision_buff_joueur(&niveau->buffs[i], joueur1)){
+            niveau->buffs[i].actif = 0;
+            joueur1->arme = 1;
+            joueur1->buff_tir_timer = BUFF_DUREE_TIR_RAPIDE;
+        } else if(collision_buff_joueur(&niveau->buffs[i], joueur2)){
+            niveau->buffs[i].actif = 0;
+            joueur2->arme = 1;
+            joueur2->buff_tir_timer = BUFF_DUREE_TIR_RAPIDE;
+        } else if(niveau->buffs[i].y > SCREEN_H - 80){
+            niveau->buffs[i].actif = 0;
+        }
+    }
+
+    for(int i = 0; i < niveau->bulles.nb; i++){
+        if(niveau->bulles.tab[i].actif && niveau->bulles.tab[i].type == 1){
+            eclair_bulle(&niveau->bulles.tab[i], niveau->projectiles, &niveau->nb_projectiles, dt);
+        }
+    }
+
     niveau->temps_restant -= dt;
 }
 

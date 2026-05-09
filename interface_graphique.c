@@ -131,6 +131,7 @@ BITMAP *img_defaite = NULL;
 
 /* Animations */
 BITMAP *img_player[2];
+BITMAP *img_player2[10];
 BITMAP *img_boss[2];
 BITMAP *img_projectile = NULL;
 BITMAP *img_projectile_boss = NULL;
@@ -142,10 +143,12 @@ BITMAP *img_background_lvl4 = NULL;
 
 /* Compteurs animation */
 int anim_player = 0;
+int anim_player2 = 0;
 int anim_projectile = 0;
 int anim_projectile_boss = 0;
 int anim_boss = 0;
 int cpt_player = 0;
+int cpt_player2 = 0;
 int cpt_projectile = 0;
 int cpt_projectile_boss = 0;
 int cpt_boss = 0;
@@ -173,6 +176,11 @@ int init_graphics() {
     /* Player animation */
     img_player[0] = load_bitmap("assets/bowser_1.bmp", NULL);
     img_player[1] = load_bitmap("assets/bowser_2.bmp", NULL);
+    for(int i = 0; i < 10; i++) {
+        char chemin[64];
+        sprintf(chemin, "assets/bonh_transp%d.bmp", i);
+        img_player2[i] = load_bitmap(chemin, NULL);
+    }
 
     img_boss[0] = load_bitmap("assets/boss1.bmp", NULL);
     img_boss[1] = load_bitmap("assets/boss2.bmp", NULL);
@@ -216,6 +224,10 @@ int init_graphics() {
     img_background_lvl4 = load_bitmap("assets/niveau4.bmp", NULL);
 
     if (!img_player[0] || !img_player[1] ||
+    !img_player2[0] || !img_player2[1] || !img_player2[2] ||
+    !img_player2[3] || !img_player2[4] || !img_player2[5] ||
+    !img_player2[6] || !img_player2[7] || !img_player2[8] ||
+    !img_player2[9] ||
     !img_boss[0] || !img_boss[1] ||
     !img_boss_vie[0] || !img_boss_vie[1] ||
     !img_boss_vie[2] || !img_boss_vie[3] ||
@@ -251,6 +263,9 @@ void destroy_graphics() {
     for (int i = 0; i < 2; i++) {
         if (img_player[i]) destroy_bitmap(img_player[i]);
         if (img_boss[i]) destroy_bitmap(img_boss[i]);
+    }
+    for (int i = 0; i < 10; i++) {
+        if (img_player2[i]) destroy_bitmap(img_player2[i]);
     }
     for (int i = 0; i < BOSS_VIE_MAX; i++)
         if (img_boss_vie[i]) destroy_bitmap(img_boss_vie[i]);
@@ -293,6 +308,10 @@ static void draw_text_outline(BITMAP *dest, FONT *f, const char *text, int x, in
     textout_ex(dest, f, text, x, y - 1, outline, -1);
     textout_ex(dest, f, text, x, y + 1, outline, -1);
     textout_ex(dest, f, text, x, y, color, -1);
+}
+
+void draw_text_outline_public(BITMAP *dest, FONT *f, const char *text, int x, int y, int color, int bg) {
+    draw_text_outline(dest, f, text, x, y, color, bg);
 }
 
 void draw_text_centre_outline(BITMAP *dest, FONT *f, const char *text, int x, int y, int color, int bg) {
@@ -438,6 +457,48 @@ void draw_player(int x, int y, int moving, int dir) {
     }
 
     destroy_bitmap(tmp);
+}
+
+void draw_player_stun(int x, int y, int moving, int dir, float stun_timer) {
+    if(stun_timer > 0.0f && ((int)(stun_timer * 12.0f)) % 2 == 0) return;
+    draw_player(x, y, moving, dir);
+}
+
+void draw_player2(int x, int y, int moving, int dir) {
+    if (moving) {
+        cpt_player2++;
+        if (cpt_player2 > 5) {
+            cpt_player2 = 0;
+            anim_player2 = (anim_player2 + 1) % 10;
+        }
+    } else {
+        anim_player2 = 0;
+    }
+
+    BITMAP *frame = img_player2[anim_player2];
+    if(!frame) return;
+
+    int w = frame->w;
+    int h = frame->h;
+
+    BITMAP *tmp = create_bitmap(w, h);
+    if (!tmp) return;
+
+    clear_to_color(tmp, makecol(255, 0, 255));
+    stretch_sprite(tmp, frame, 0, 0, w, h);
+
+    if (dir == 1) {
+        draw_sprite(buffer, tmp, x, y);
+    } else {
+        draw_sprite_h_flip(buffer, tmp, x, y);
+    }
+
+    destroy_bitmap(tmp);
+}
+
+void draw_player2_stun(int x, int y, int moving, int dir, float stun_timer) {
+    if(stun_timer > 0.0f && ((int)(stun_timer * 12.0f)) % 2 == 0) return;
+    draw_player2(x, y, moving, dir);
 }
 
 void draw_boss(int x, int y, int moving_boss, int dir) {
@@ -820,6 +881,7 @@ void reset_game(Joueur *joueur, Niveau *niveau, int *niveau_actuel) {
     joueur->score = 0;
     joueur->arme = 0;
     joueur->buff_tir_timer = 0.0f;
+    joueur->stun_timer = 0.0f;
     dir = 1;
     *niveau_actuel = 0;
 

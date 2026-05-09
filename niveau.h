@@ -20,6 +20,9 @@ void initialiser_niveau(Niveau* niveau, int num_niveau);
 void maj_niveau(Niveau* niveau, Joueur* joueur, float dt);
 // Met à jour un niveau avec les positions des bulles, projectiles et boss 
 
+void maj_niveau_duel(Niveau* niveau, Joueur* joueur1, Joueur* joueur2, float dt);
+// Met à jour un niveau en mode duel sans défaite instantanée
+
 int niveau_termine(Niveau* niveau, Joueur* joueur);
 // Retourne 0 si défaite, 1 si victoire, -1 si en cours
 

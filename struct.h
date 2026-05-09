@@ -9,6 +9,7 @@ typedef struct Joueur {
     int score;           // score actuel
     int arme;            // type d’arme active
     float buff_tir_timer; // temps restant du buff de tir rapide
+    float stun_timer;    // temps restant du stun
 } Joueur;
 
 // Structure d'une bulle
@@ -48,6 +49,7 @@ typedef struct Projectile {
     float delai_activation;
     int actif;       // 1=en mouvement, 0=détruit
     int type;        // 0=joueur, 1=eclair, 2=boss
+    int proprietaire; // 1=joueur 1, 2=joueur 2
 } Projectile;
 
 // Structure d'un bonus temporaire

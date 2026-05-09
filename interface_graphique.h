@@ -35,6 +35,7 @@ void update_explosions(float dt);
 void update_eclairs(float dt);
 void draw_text_centre_outline(BITMAP *dest, FONT *f, const char *text, int x, int y, int color, int bg);
 void draw_text_centre_outline_scale(BITMAP *dest, FONT *f, const char *text, int x, int y, int color, int scale);
+void draw_text_outline_public(BITMAP *dest, FONT *f, const char *text, int x, int y, int color, int bg);
 
 /* ============================= */
 /* ===== MENU ================== */
@@ -49,6 +50,9 @@ void draw_menu(int selection);
 /* On passe uniquement les infos utiles */
 
 void draw_player(int x, int y, int moving, int dir);
+void draw_player_stun(int x, int y, int moving, int dir, float stun_timer);
+void draw_player2(int x, int y, int moving, int dir);
+void draw_player2_stun(int x, int y, int moving, int dir, float stun_timer);
 void draw_boss(int x, int y, int moving_boss, int dir);
 void draw_boss_vie(int vie);
 
