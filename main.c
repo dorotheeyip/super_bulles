@@ -478,22 +478,22 @@ int main(void) {
                 if(valeur_compte_rebours > 3) valeur_compte_rebours = 3;
 
                 draw_player_stun((int)joueur.x, (int)joueur.y, moving, dir, joueur.stun_timer);
-                draw_player_hitbox(&joueur);
+                // draw_player_hitbox(&joueur);
                 if(mode_duel) {
                     draw_player2_stun((int)joueur2.x, (int)joueur2.y, moving2, dir2, joueur2.stun_timer);
-                    draw_player_hitbox(&joueur2);
+                    // draw_player_hitbox(&joueur2);
                 }
 
                 if(niveau_struct.boss.pv > 0) {
                     boss_dir = (niveau_struct.boss.vitesse > 0) ? 1 : -1;
                     draw_boss((int)niveau_struct.boss.x, (int)niveau_struct.boss.y, 0, boss_dir);
-                    draw_boss_hitbox(&niveau_struct.boss);
+                    // draw_boss_hitbox(&niveau_struct.boss);
                     draw_boss_vie(niveau_struct.boss.pv);
                 }
 
                 for(int i = 0; i < niveau_struct.bulles.nb; i++) {
                     draw_bubble(&niveau_struct.bulles.tab[i]);
-                    draw_bubble_hitbox(&niveau_struct.bulles.tab[i]);
+                    // draw_bubble_hitbox(&niveau_struct.bulles.tab[i]);
                 }
 
                 for(int i = 0; i < niveau_struct.nb_buffs; i++) {
@@ -608,11 +608,11 @@ int main(void) {
             /* draw */
 
             draw_player_stun((int)joueur.x, (int)joueur.y, moving, dir, joueur.stun_timer);
-            draw_player_hitbox(&joueur);
+            // draw_player_hitbox(&joueur);
             draw_buff_timer(&joueur);
             if(mode_duel) {
                 draw_player2_stun((int)joueur2.x, (int)joueur2.y, moving2, dir2, joueur2.stun_timer);
-                draw_player_hitbox(&joueur2);
+                // draw_player_hitbox(&joueur2);
                 draw_buff_timer(&joueur2);
             }
 
@@ -623,7 +623,7 @@ int main(void) {
                 boss_moving = 1;
 
                 draw_boss((int)niveau_struct.boss.x, (int)niveau_struct.boss.y, boss_moving, boss_dir);
-                draw_boss_hitbox(&niveau_struct.boss);
+                // draw_boss_hitbox(&niveau_struct.boss);
 
                 draw_boss_vie(niveau_struct.boss.pv);
 
@@ -632,7 +632,7 @@ int main(void) {
             for(int i = 0; i < niveau_struct.bulles.nb; i++) {
 
                 draw_bubble(&niveau_struct.bulles.tab[i]);
-                draw_bubble_hitbox(&niveau_struct.bulles.tab[i]);
+                // draw_bubble_hitbox(&niveau_struct.bulles.tab[i]);
 
             }
 
@@ -645,18 +645,18 @@ int main(void) {
             for(int i = 0; i < niveau_struct.nb_projectiles; i++) {
 
                 if(niveau_struct.projectiles[i].type != 0) {
-                    draw_eclair_hitbox(&niveau_struct.projectiles[i]);
+                    // draw_eclair_hitbox(&niveau_struct.projectiles[i]);
                     continue;
                 }
                 draw_projectile((int)niveau_struct.projectiles[i].x, (int)niveau_struct.projectiles[i].y, niveau_struct.projectiles[i].actif);
-                draw_projectile_hitbox(&niveau_struct.projectiles[i]);
+                // draw_projectile_hitbox(&niveau_struct.projectiles[i]);
 
             }
 
             for(int i = 0; i < NB_PROJ_BOSS; i++) {
 
                 draw_projectile_boss((int)proj_boss[i].x, (int)proj_boss[i].y, proj_boss[i].actif);
-                draw_projectile_boss_hitbox((int)proj_boss[i].x, (int)proj_boss[i].y, proj_boss[i].actif);
+                // draw_projectile_boss_hitbox((int)proj_boss[i].x, (int)proj_boss[i].y, proj_boss[i].actif);
 
             }
 

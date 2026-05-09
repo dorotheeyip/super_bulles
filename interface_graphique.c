@@ -552,7 +552,6 @@ void draw_boss_vie(int vie) {
 void draw_bubble(Bulle *bulle) {
     if (!bulle || !bulle->actif || !img_bubble) return;
 
-    /* The bubble position is its center; draw sprite centered and scaled to hitbox diameter. */
     int diametre = bulle->r * 2;
     int x = (int)(bulle->x - bulle->r);
     int y = (int)(bulle->y - bulle->r);
@@ -571,7 +570,6 @@ void draw_bubble(Bulle *bulle) {
 void draw_bubble_hitbox(Bulle* bulle) {
     if (!bulle->actif) return;
     
-    // Draw circular hitbox (green)
     circle(buffer, (int)bulle->x, (int)bulle->y, bulle->r, makecol(0, 255, 0));
 }
 
@@ -580,7 +578,6 @@ void draw_player_hitbox(Joueur* joueur) {
     int cy = (int)(joueur->y + joueur->ty / 2.0f);
     int rayon = (joueur->tx < joueur->ty ? joueur->tx : joueur->ty) / 2;
 
-    // Draw circular hitbox (yellow)
     circle(buffer, cx, cy, rayon, makecol(255, 255, 0));
 }
 
@@ -619,21 +616,18 @@ void draw_buff_timer(Joueur* joueur) {
 }
 
 void draw_boss_hitbox(Boss* boss) {
-    // Draw circular hitbox (blue) with radius 40
     circle(buffer, (int)boss->x, (int)boss->y, 40, makecol(0, 0, 255));
 }
 
 void draw_projectile_hitbox(Projectile* proj) {
     if (!proj->actif) return;
     
-    // Draw circular hitbox (cyan) with radius 5
     circle(buffer, (int)proj->x, (int)proj->y, 5, makecol(0, 255, 255));
 }
 
 void draw_projectile_boss_hitbox(int x, int y, int active) {
     if (!active) return;
     
-    // Draw circular hitbox (purple)
     circle(buffer, x, y, (int)RAYON_HITBOX_PROJECTILE_BOSS, makecol(255, 0, 255));
 }
 
@@ -641,7 +635,6 @@ void draw_eclair_hitbox(Projectile* proj) {
     if (!proj->actif) return;
     if (proj->delai_activation > 0.0f) return;
 
-    // Draw rectangular hitbox (red)
     rect(buffer,
          (int)(proj->x - ECLAIR_HITBOX_LARGEUR / 2.0f),
          (int)proj->y,

@@ -423,16 +423,16 @@ int collision_bulle_projectile(Bulle* bulle, Projectile* proj){
 }
 
 int collision_bulle_joueur(Bulle* bulle, Joueur* joueur){
-    // Calculate player center
+    // calcule le centre du joueur
     float joueur_cx = joueur->x + joueur->tx / 2.0f;
     float joueur_cy = joueur->y + joueur->ty / 2.0f;
     
-    // Calculate distance between bubble center and player center
+    // calcule la distance entre le centre de la bulle et le centre du joueur
     float dx = bulle->x - joueur_cx;
     float dy = bulle->y - joueur_cy;
     float distance = dx*dx + dy*dy;
     
-    // Sum of radii
+    // somme des rayons
     float player_radius = rayon_joueur(joueur);
     float sum_r = bulle->r + player_radius;
     
