@@ -17,6 +17,24 @@ typedef enum {
     ETAT_DUO
 } EtatJeu;
 
+static void lancer_partie_graphique(Joueur *joueur, Niveau *niveau, int niveau_depart, int *niveau_courant, int *resultat_niveau) {
+    *niveau_courant = niveau_depart;
+    *resultat_niveau = -1;
+    initialiser_niveau(niveau, *niveau_courant);
+}
+
+static int lancer_niveau_graphique(Niveau *niveau, Joueur *joueur, float dt, float *timer_tir_auto) {
+    *timer_tir_auto += dt;
+    if (*timer_tir_auto > 0.5f && niveau->nb_projectiles < 20) {
+        niveau->projectiles[niveau->nb_projectiles] = tirer(joueur);
+        niveau->nb_projectiles++;
+        *timer_tir_auto = 0.0f;
+    }
+
+    maj_niveau(niveau, joueur, dt);
+    return niveau_termine(niveau, joueur);
+}
+
 int fin_selection = 0;
 float fin_scale = 0.1f;
 int fin_anim_done = 0;
@@ -579,7 +597,7 @@ void draw_ui(int score, int time_left, const char *pseudo) {
 
 void draw_menu_fin(int victoire, int niveau_actuel, int score, BITMAP *img_annonce) {
 
-    draw_background_level(niveau_actuel);
+    draw_background_level(niveau_actuel + 1);
 
     set_trans_blender(0, 0, 0, 128);
     drawing_mode(DRAW_MODE_TRANS, NULL, 0, 0);
@@ -637,7 +655,7 @@ void reset_game(Joueur *joueur, Niveau *niveau, int *niveau_actuel) {
     joueur->y = SCREEN_H-170;
     joueur->score = 0;
     dir = 1;
-    *niveau_actuel = 1;
+    *niveau_actuel = 0;
 
     niveau->boss.x = 400;
     niveau->boss.y = 50;
@@ -735,10 +753,11 @@ int main() {
 
     Joueur joueur;
     Niveau niveau_struct;
-    int niveau_actuel = 1;
+    int niveau_actuel = 0;
     int mode_charger = 0;
     int victoire = 0;
-    int key_pressed = 0;
+    int resultat_niveau = -1;
+    float timer_tir_auto = 0.0f;
 
     memset(&joueur, 0, sizeof(Joueur));
     memset(&niveau_struct, 0, sizeof(Niveau));
@@ -768,7 +787,8 @@ int main() {
 
                 if (selection == 0) { // Nouvelle partie
                     initialiser_joueur(&joueur, "");
-                    initialiser_niveau(&niveau_struct, niveau_actuel);
+                    lancer_partie_graphique(&joueur, &niveau_struct, 0, &niveau_actuel, &resultat_niveau);
+                    timer_tir_auto = 0.0f;
                     etat = ETAT_JEU;
                 }
 
@@ -852,12 +872,14 @@ int main() {
                             if(niv != -1) {
                                 niveau_actuel = niv;
                             } else {
-                                niveau_actuel = 1;
+                                niveau_actuel = 0;
                             }
                         } else {
                             initialiser_joueur(&joueur, pseudo);
+                            niveau_actuel = 0;
                         }
-                        initialiser_niveau(&niveau_struct, niveau_actuel);
+                        lancer_partie_graphique(&joueur, &niveau_struct, niveau_actuel, &niveau_actuel, &resultat_niveau);
+                        timer_tir_auto = 0.0f;
                         etat = ETAT_JEU;
                         mode_charger = 0;
                     }
@@ -935,7 +957,7 @@ int main() {
 
             clear_screen();
 
-            draw_background_level(niveau_actuel);
+            draw_background_level(niveau_actuel + 1);
 
             clock_t current_time = clock();
 
@@ -972,22 +994,6 @@ int main() {
             if (joueur.x < 0) joueur.x = 0;
 
             if (joueur.x > SCREEN_W - 100) joueur.x = SCREEN_W - 100;
-
-            if (key[KEY_SPACE] && !key_pressed) {
-
-                key_pressed = 1;
-
-                if(niveau_struct.nb_projectiles < 20) {
-
-                    niveau_struct.projectiles[niveau_struct.nb_projectiles] = tirer(&joueur);
-
-                    niveau_struct.nb_projectiles++;
-
-                }
-
-            }
-
-            if (!key[KEY_SPACE]) key_pressed = 0;
 
             /* update boss projectiles */
 
@@ -1029,17 +1035,13 @@ int main() {
 
             /* update */
 
-            maj_niveau(&niveau_struct, &joueur, dt);
+            resultat_niveau = lancer_niveau_graphique(&niveau_struct, &joueur, dt, &timer_tir_auto);
 
-            /* check end */
-
-            int res = niveau_termine(&niveau_struct, &joueur);
-
-            if(res == 1) {
+            if(resultat_niveau == 1) {
 
                 victoire = 1;
 
-                fin_niveau(res, &joueur);
+                fin_niveau(resultat_niveau, &joueur);
 
                 niveau_actuel++;
 
@@ -1048,18 +1050,20 @@ int main() {
                 if(niveau_actuel <= 3) {
 
                     initialiser_niveau(&niveau_struct, niveau_actuel);
+                    timer_tir_auto = 0.0f;
 
                 } else {
 
+                    printf("Partie terminée !\n");
                     etat = ETAT_MENU;
 
                 }
 
-            } else if(res == 0) {
+            } else if(resultat_niveau == 0) {
 
                 victoire = 0;
 
-                fin_niveau(res, &joueur);
+                fin_niveau(resultat_niveau, &joueur);
 
                 etat = ETAT_FIN;
 
