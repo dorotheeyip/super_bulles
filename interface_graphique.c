@@ -416,6 +416,37 @@ void draw_bubble(int x, int y, int active) {
     }
 }
 
+void draw_bubble_hitbox(Bulle* bulle) {
+    if (!bulle->actif) return;
+    
+    // Draw circular hitbox (green)
+    circle(buffer, (int)bulle->x, (int)bulle->y, bulle->r, makecol(0, 255, 0));
+}
+
+void draw_player_hitbox(Joueur* joueur) {
+    // Draw rectangular hitbox (yellow)
+    rect(buffer, (int)joueur->x, (int)joueur->y, (int)(joueur->x + joueur->tx), (int)(joueur->y + joueur->ty), makecol(255, 255, 0));
+}
+
+void draw_boss_hitbox(Boss* boss) {
+    // Draw circular hitbox (blue) with radius 40
+    circle(buffer, (int)boss->x, (int)boss->y, 40, makecol(0, 0, 255));
+}
+
+void draw_projectile_hitbox(Projectile* proj) {
+    if (!proj->actif) return;
+    
+    // Draw circular hitbox (cyan) with radius 5
+    circle(buffer, (int)proj->x, (int)proj->y, 5, makecol(0, 255, 255));
+}
+
+void draw_projectile_boss_hitbox(int x, int y, int active) {
+    if (!active) return;
+    
+    // Draw circular hitbox (purple) with radius 5
+    circle(buffer, x, y, 5, makecol(255, 0, 255));
+}
+
 void draw_explosion(int x, int y, int active, int anim) {
     if (!active) return;
 
@@ -603,7 +634,7 @@ void draw_menu_fin(int victoire, int niveau_actuel, int score, BITMAP *img_annon
 void reset_game(Joueur *joueur, Niveau *niveau, int *niveau_actuel) {
 
     joueur->x = 100;
-    joueur->y = 425;
+    joueur->y = SCREEN_H-170;
     joueur->score = 0;
     dir = 1;
     *niveau_actuel = 1;
@@ -617,7 +648,11 @@ void reset_game(Joueur *joueur, Niveau *niveau, int *niveau_actuel) {
     if (niveau->projectiles) {
         for (int i = 0; i < 20; i++) {
             niveau->projectiles[i].actif = 0;
+
         }
+
+
+
         niveau->nb_projectiles = 0;
     }
 
@@ -1004,7 +1039,7 @@ int main() {
 
                 victoire = 1;
 
-                joueur.score += 100;
+                fin_niveau(res, &joueur);
 
                 niveau_actuel++;
 
@@ -1024,6 +1059,8 @@ int main() {
 
                 victoire = 0;
 
+                fin_niveau(res, &joueur);
+
                 etat = ETAT_FIN;
 
             }
@@ -1031,6 +1068,7 @@ int main() {
             /* draw */
 
             draw_player((int)joueur.x, (int)joueur.y, moving, dir);
+            draw_player_hitbox(&joueur);
 
             if(niveau_struct.boss.pv > 0) {
 
@@ -1039,6 +1077,7 @@ int main() {
                 boss_moving = 1;
 
                 draw_boss((int)niveau_struct.boss.x, (int)niveau_struct.boss.y, boss_moving, boss_dir);
+                draw_boss_hitbox(&niveau_struct.boss);
 
                 draw_boss_vie(niveau_struct.boss.pv);
 
@@ -1047,18 +1086,21 @@ int main() {
             for(int i = 0; i < niveau_struct.bulles.nb; i++) {
 
                 draw_bubble((int)niveau_struct.bulles.tab[i].x, (int)niveau_struct.bulles.tab[i].y, niveau_struct.bulles.tab[i].actif);
+                draw_bubble_hitbox(&niveau_struct.bulles.tab[i]);
 
             }
 
             for(int i = 0; i < niveau_struct.nb_projectiles; i++) {
 
                 draw_projectile((int)niveau_struct.projectiles[i].x, (int)niveau_struct.projectiles[i].y, niveau_struct.projectiles[i].actif);
+                draw_projectile_hitbox(&niveau_struct.projectiles[i]);
 
             }
 
             for(int i = 0; i < NB_PROJ_BOSS; i++) {
 
                 draw_projectile_boss(proj_boss_x[i], proj_boss_y[i], proj_boss_active[i]);
+                draw_projectile_boss_hitbox(proj_boss_x[i], proj_boss_y[i], proj_boss_active[i]);
 
             }
 

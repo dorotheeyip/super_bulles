@@ -3,7 +3,7 @@
 void initialiser_joueur(Joueur* joueur, char* pseudo){ // x,y et tx ty a maj
     strcpy(joueur->pseudo, pseudo);
     joueur->x=SCREEN_W/2;
-    joueur->y=SCREEN_H-100;
+    joueur->y=SCREEN_H-170;
     joueur->tx=40;
     joueur->ty=40;
     joueur->score=0;

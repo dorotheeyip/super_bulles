@@ -19,10 +19,10 @@ void initialiser_niveau(Niveau* niveau, int num_niveau){
         for(int i = 0; i < niveau->bulles.nb; i++){
             niveau->bulles.tab[i].x = SCREEN_W/2;
             niveau->bulles.tab[i].y = 100;
-            if(i % 2 == 0) niveau->bulles.tab[i].vx = 2;
-            else niveau->bulles.tab[i].vx = -2;
-            niveau->bulles.tab[i].vy = 2;
-            niveau->bulles.tab[i].r = 30;
+            if(i % 2 == 0) niveau->bulles.tab[i].vx = 200;
+            else niveau->bulles.tab[i].vx = -200;
+            niveau->bulles.tab[i].vy = 200;
+            niveau->bulles.tab[i].r = 50;
             niveau->bulles.tab[i].tx = 60;
             niveau->bulles.tab[i].ty = 60;
             if (num_niveau >= 2 && i % 3 == 0) niveau->bulles.tab[i].type = 1;
@@ -131,13 +131,13 @@ int niveau_termine(Niveau* niveau, Joueur* joueur){
     return -1;
 }
  
-void deplacer_bulle(Bulle* bulle, float dt){ //ajouter gravite
+void deplacer_bulle(Bulle* bulle, float dt){ 
     float g = 1.0;
     bulle->vy += g*dt;
     bulle->x += bulle->vx * dt;
     bulle->y += bulle->vy * dt;
     if(bulle->x - bulle->r <= 0 || bulle->x + bulle->r >= SCREEN_W) bulle->vx = -bulle->vx;
-    if(bulle->y - bulle->r <= 0 || bulle->y + bulle->r >= SCREEN_H) bulle->vy = -bulle->vy * 0.9;
+    if(bulle->y - bulle->r <= 0 || bulle->y + bulle->r >= SCREEN_H-170) bulle->vy = -bulle->vy * 0.9;
     bulle->xcoin = bulle->x - bulle->r;
     bulle->ycoin = bulle->y - bulle->r;
 }
@@ -170,7 +170,20 @@ int collision_bulle_projectile(Bulle* bulle, Projectile* proj){
 }
 
 int collision_bulle_joueur(Bulle* bulle, Joueur* joueur){
-    if (bulle->xcoin < joueur->x + joueur->tx && joueur->x < bulle->xcoin + bulle->tx && bulle->ycoin < joueur->y + joueur->ty && joueur->y < bulle->ycoin + bulle->ty){
+    // Calculate player center
+    float joueur_cx = joueur->x + joueur->tx / 2.0f;
+    float joueur_cy = joueur->y + joueur->ty / 2.0f;
+    
+    // Calculate distance between bubble center and player center
+    float dx = bulle->x - joueur_cx;
+    float dy = bulle->y - joueur_cy;
+    float distance = dx*dx + dy*dy;
+    
+    // Sum of radii (bubble radius + estimated player radius)
+    float player_radius = (joueur->tx + joueur->ty) / 4.0f;
+    float sum_r = bulle->r + player_radius;
+    
+    if(distance < sum_r * sum_r){
         return 1;
     }
     return 0;
