@@ -31,7 +31,8 @@ int lancer_niveau(int num_niveau, Joueur* joueur){
         maj_niveau(&niveau, joueur, dt);
 
         timer_tir += dt;
-        if(timer_tir > 0.5 && niveau.nb_projectiles < 20){ // tir toutes les 0.5s
+        float cadence_tir = 0.5f;
+        if(timer_tir > cadence_tir && niveau.nb_projectiles < 20){ // tir automatique
             niveau.projectiles[niveau.nb_projectiles] = tirer(joueur);
             niveau.nb_projectiles++;
             timer_tir = 0;

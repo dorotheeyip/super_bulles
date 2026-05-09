@@ -29,6 +29,7 @@ int main(void) {
     int victoire = 0;
     int resultat_niveau = -1;
     float timer_tir_auto = 0.0f;
+    float compte_rebours = 0.0f;
     float menu_nav_cooldown = 0.0f;
     float menu_enter_cooldown = 0.0f;
     int quitter_programme = 0;
@@ -176,6 +177,20 @@ int main(void) {
                         }
                         lancer_partie_graphique(&joueur, &niveau_struct, niveau_actuel, &niveau_actuel, &resultat_niveau);
                         timer_tir_auto = 0.0f;
+                        joueur.arme = 0;
+                        joueur.buff_tir_timer = 0.0f;
+                        for(int i = 0; i < NB_ECLAIRS; i++) {
+                            eclair_active[i] = 0;
+                            eclair_anim[i] = 0;
+                        }
+                        for(int i = 0; i < NB_EXPLOSIONS; i++) {
+                            explo_active[i] = 0;
+                            explo_anim[i] = 0;
+                        }
+                        for(int i = 0; i < NB_PROJ_BOSS; i++) {
+                            proj_boss[i].actif = 0;
+                        }
+                        compte_rebours = 3.0f;
                         etat = ETAT_JEU;
                         mode_charger = 0;
                     }
@@ -300,7 +315,9 @@ int main(void) {
 
             /* input */
 
-            if (key[KEY_LEFT]) {
+            if(compte_rebours > 0.0f) {
+                moving = 0;
+            } else if (key[KEY_LEFT]) {
 
                 deplacer_joueur(&joueur, 0, dt);
 
@@ -325,6 +342,45 @@ int main(void) {
             if (joueur.x < 0) joueur.x = 0;
 
             if (joueur.x > SCREEN_W - 100) joueur.x = SCREEN_W - 100;
+
+            if(compte_rebours > 0.0f) {
+                int valeur_compte_rebours = (int)compte_rebours + 1;
+                if(valeur_compte_rebours > 3) valeur_compte_rebours = 3;
+
+                draw_player((int)joueur.x, (int)joueur.y, moving, dir);
+                draw_player_hitbox(&joueur);
+
+                if(niveau_struct.boss.pv > 0) {
+                    boss_dir = (niveau_struct.boss.vitesse > 0) ? 1 : -1;
+                    draw_boss((int)niveau_struct.boss.x, (int)niveau_struct.boss.y, 0, boss_dir);
+                    draw_boss_hitbox(&niveau_struct.boss);
+                    draw_boss_vie(niveau_struct.boss.pv);
+                }
+
+                for(int i = 0; i < niveau_struct.bulles.nb; i++) {
+                    draw_bubble(&niveau_struct.bulles.tab[i]);
+                    draw_bubble_hitbox(&niveau_struct.bulles.tab[i]);
+                }
+
+                for(int i = 0; i < niveau_struct.nb_buffs; i++) {
+                    draw_buff(&niveau_struct.buffs[i]);
+                }
+
+                draw_ui(joueur.score, (int)niveau_struct.temps_restant, joueur.pseudo, niveau_actuel + 1);
+
+                char texte_compte_rebours[8];
+                sprintf(texte_compte_rebours, "%d", valeur_compte_rebours);
+                draw_text_centre_outline_scale(buffer, font, texte_compte_rebours,
+                                               SCREEN_W/2, SCREEN_H/2 - 20,
+                                               makecol(255,255,255), 3);
+
+                compte_rebours -= dt;
+                if(compte_rebours < 0.0f) compte_rebours = 0.0f;
+
+                update_display();
+                rest(16);
+                break;
+            }
 
             /* update boss projectiles */
             int touche_projectile_boss = boss_attaque(&niveau_struct.boss, &niveau_struct.bulles, proj_boss, NB_PROJ_BOSS, &joueur, dt, &timer_tir_boss);
@@ -378,6 +434,7 @@ int main(void) {
 
             draw_player((int)joueur.x, (int)joueur.y, moving, dir);
             draw_player_hitbox(&joueur);
+            draw_buff_timer(&joueur);
 
             if(niveau_struct.boss.pv > 0) {
 
@@ -396,6 +453,12 @@ int main(void) {
 
                 draw_bubble(&niveau_struct.bulles.tab[i]);
                 draw_bubble_hitbox(&niveau_struct.bulles.tab[i]);
+
+            }
+
+            for(int i = 0; i < niveau_struct.nb_buffs; i++) {
+
+                draw_buff(&niveau_struct.buffs[i]);
 
             }
 
@@ -488,10 +551,21 @@ int main(void) {
                                 joueur.x = SCREEN_W/2;
                                 joueur.y = SCREEN_H-170;
                                 if(!victoire) joueur.score = 0;
+                                joueur.arme = 0;
+                                joueur.buff_tir_timer = 0.0f;
                                 dir = 1;
                                 moving = 0;
                                 timer_tir_auto = 0.0f;
                                 timer_tir_boss = 0.0f;
+                                compte_rebours = 3.0f;
+                                for(int i = 0; i < NB_ECLAIRS; i++) {
+                                    eclair_active[i] = 0;
+                                    eclair_anim[i] = 0;
+                                }
+                                for(int i = 0; i < NB_EXPLOSIONS; i++) {
+                                    explo_active[i] = 0;
+                                    explo_anim[i] = 0;
+                                }
                                 for(int i = 0; i < NB_PROJ_BOSS; i++){
                                     proj_boss[i].actif = 0;
                                 }

@@ -34,6 +34,7 @@ int lancer_niveau_graphique(Niveau *niveau, Joueur *joueur, float dt, float *tim
 void update_explosions(float dt);
 void update_eclairs(float dt);
 void draw_text_centre_outline(BITMAP *dest, FONT *f, const char *text, int x, int y, int color, int bg);
+void draw_text_centre_outline_scale(BITMAP *dest, FONT *f, const char *text, int x, int y, int color, int scale);
 
 /* ============================= */
 /* ===== MENU ================== */
@@ -58,6 +59,8 @@ void draw_boss_hitbox(Boss* boss);
 void draw_projectile_hitbox(Projectile* proj);
 void draw_projectile_boss_hitbox(int x, int y, int active);
 void draw_eclair_hitbox(Projectile* proj);
+void draw_buff(Buff* buff);
+void draw_buff_timer(Joueur* joueur);
 
 void draw_explosion(int x, int y, int active, int anim);
 void draw_eclair(int x, int y, int active, int anim);

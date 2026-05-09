@@ -8,6 +8,7 @@ typedef struct Joueur {
     int tx, ty;          // taille (largeur, hauteur) 
     int score;           // score actuel
     int arme;            // type d’arme active
+    float buff_tir_timer; // temps restant du buff de tir rapide
 } Joueur;
 
 // Structure d'une bulle
@@ -49,12 +50,23 @@ typedef struct Projectile {
     int type;        // 0=joueur, 1=eclair, 2=boss
 } Projectile;
 
+// Structure d'un bonus temporaire
+typedef struct Buff {
+    float x, y;
+    float vitesse;
+    int actif;
+    int type;            // 0 = tir rapide
+} Buff;
+
 // Structure d'un niveau
 typedef struct Niveau {
     ListeBulles bulles;
     Boss boss;
     Projectile* projectiles;
     int nb_projectiles;
+    Buff buffs[10];
+    int nb_buffs;
+    int num_niveau;
     float temps_restant;
 } Niveau;
 

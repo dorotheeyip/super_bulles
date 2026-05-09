@@ -41,8 +41,10 @@ static void ajouter_projectile_joueur(Niveau *niveau, Joueur *joueur) {
 }
 
 int lancer_niveau_graphique(Niveau *niveau, Joueur *joueur, float dt, float *timer_tir_auto) {
+    float cadence_tir = (joueur->arme == 1) ? 0.05f : 0.1f;
+
     *timer_tir_auto += dt;
-    if (*timer_tir_auto > 0.1f) {
+    if (*timer_tir_auto > cadence_tir) {
         ajouter_projectile_joueur(niveau, joueur);
         *timer_tir_auto = 0.0f;
     }
@@ -303,6 +305,27 @@ void draw_text_centre_outline(BITMAP *dest, FONT *f, const char *text, int x, in
     textout_centre_ex(dest, f, text, x, y, color, -1);
 }
 
+void draw_text_centre_outline_scale(BITMAP *dest, FONT *f, const char *text, int x, int y, int color, int scale) {
+    int marge = 4;
+    int w = text_length(f, text) + marge * 2;
+    int h = text_height(f) + marge * 2;
+    int masque = makecol(255, 0, 255);
+    BITMAP *tmp = create_bitmap(w, h);
+
+    if(!tmp) return;
+
+    clear_to_color(tmp, masque);
+    draw_text_centre_outline(tmp, f, text, w / 2, marge, color, -1);
+
+    masked_stretch_blit(tmp, dest,
+                        0, 0, w, h,
+                        x - (w * scale) / 2,
+                        y - (h * scale) / 2,
+                        w * scale, h * scale);
+
+    destroy_bitmap(tmp);
+}
+
 
 /* ============================= */
 /* ===== BACKGROUND ============ */
@@ -498,6 +521,40 @@ void draw_player_hitbox(Joueur* joueur) {
 
     // Draw circular hitbox (yellow)
     circle(buffer, cx, cy, rayon, makecol(255, 255, 0));
+}
+
+void draw_buff(Buff* buff) {
+    if(!buff || !buff->actif) return;
+
+    int x = (int)buff->x;
+    int y = (int)buff->y;
+    int jaune = makecol(255, 230, 0);
+    int orange = makecol(255, 140, 0);
+
+    circlefill(buffer, x, y, 12, jaune);
+    triangle(buffer, x, y - 20, x - 6, y - 6, x + 6, y - 6, jaune);
+    triangle(buffer, x + 20, y, x + 6, y - 6, x + 6, y + 6, jaune);
+    triangle(buffer, x, y + 20, x - 6, y + 6, x + 6, y + 6, jaune);
+    triangle(buffer, x - 20, y, x - 6, y - 6, x - 6, y + 6, jaune);
+    circle(buffer, x, y, 12, orange);
+    textout_centre_ex(buffer, font, ">>", x, y - 4, makecol(255,255,255), -1);
+}
+
+void draw_buff_timer(Joueur* joueur) {
+    if(!joueur || joueur->buff_tir_timer <= 0.0f) return;
+
+    int largeur_max = joueur->tx;
+    int largeur = (int)(largeur_max * (joueur->buff_tir_timer / 5.0f));
+    int x = (int)joueur->x;
+    int y = (int)(joueur->y + joueur->ty + 6);
+
+    if(largeur < 0) largeur = 0;
+    if(largeur > largeur_max) largeur = largeur_max;
+
+    rect(buffer, x, y, x + largeur_max, y + 6, makecol(255,255,255));
+    if(largeur > 2) {
+        rectfill(buffer, x + 1, y + 1, x + largeur - 1, y + 5, makecol(255,230,0));
+    }
 }
 
 void draw_boss_hitbox(Boss* boss) {
@@ -761,6 +818,8 @@ void reset_game(Joueur *joueur, Niveau *niveau, int *niveau_actuel) {
     joueur->x = 100;
     joueur->y = SCREEN_H-170;
     joueur->score = 0;
+    joueur->arme = 0;
+    joueur->buff_tir_timer = 0.0f;
     dir = 1;
     *niveau_actuel = 0;
 
@@ -801,6 +860,12 @@ void reset_game(Joueur *joueur, Niveau *niveau, int *niveau_actuel) {
     /* Reset bulles */
     if (niveau->bulles.tab) {
         niveau->bulles.nb = 0;
+    }
+    niveau->nb_buffs = 10;
+    for (int i = 0; i < niveau->nb_buffs; i++) {
+        niveau->buffs[i].actif = 0;
+        niveau->buffs[i].type = 0;
+        niveau->buffs[i].vitesse = 120.0f;
     }
     cpt_spawn_bulle = 0;
 

@@ -4,6 +4,8 @@
 #define BOSS_VITESSE_INITIALE 120.0f
 #define BOSS_ACCELERATION 25.0f
 #define DELAI_CHARGE_ECLAIR 0.6f
+#define BUFF_DUREE_TIR_RAPIDE 5.0f
+#define BUFF_PROBA_DROP 5
 
 static float random_unit(void) {
     return (float)rand() / (float)RAND_MAX;
@@ -21,12 +23,20 @@ void initialiser_niveau(Niveau* niveau, int num_niveau){
 
     niveau->projectiles = malloc(sizeof(Projectile) * 20);
     niveau->nb_projectiles = 0;
+    niveau->nb_buffs = 10;
+    niveau->num_niveau = num_niveau;
+    for(int i = 0; i < niveau->nb_buffs; i++){
+        niveau->buffs[i].actif = 0;
+        niveau->buffs[i].type = 0;
+        niveau->buffs[i].vitesse = 120.0f;
+    }
 
     // Bulles
     if(num_niveau < 3){
         niveau->temps_restant = tab_tps_niv[num_niveau];
         niveau->bulles.nb = tab_nb_bulles[num_niveau];
 
+        
         niveau->bulles.capacite = 50;
         niveau->bulles.tab = malloc(sizeof(Bulle) * niveau->bulles.capacite);
         for(int i = 0; i < niveau->bulles.nb; i++){
@@ -72,7 +82,41 @@ void initialiser_niveau(Niveau* niveau, int num_niveau){
     }
 }
  
+static void creer_buff_tir_rapide(Niveau* niveau, float x, float y){
+    if(niveau->num_niveau < 1) return;
+    if(rand() % 100 >= BUFF_PROBA_DROP) return;
+
+    for(int i = 0; i < niveau->nb_buffs; i++){
+        if(!niveau->buffs[i].actif){
+            niveau->buffs[i].x = x;
+            niveau->buffs[i].y = y;
+            niveau->buffs[i].vitesse = 120.0f;
+            niveau->buffs[i].type = 0;
+            niveau->buffs[i].actif = 1;
+            return;
+        }
+    }
+}
+
+static int collision_buff_joueur(Buff* buff, Joueur* joueur){
+    float joueur_cx = joueur->x + joueur->tx / 2.0f;
+    float joueur_cy = joueur->y + joueur->ty / 2.0f;
+    float dx = buff->x - joueur_cx;
+    float dy = buff->y - joueur_cy;
+    float rayon = rayon_joueur(joueur) + 14.0f;
+
+    return dx * dx + dy * dy <= rayon * rayon;
+}
+
 void maj_niveau(Niveau* niveau, Joueur* joueur, float dt){
+    if(joueur->buff_tir_timer > 0.0f){
+        joueur->buff_tir_timer -= dt;
+        if(joueur->buff_tir_timer <= 0.0f){
+            joueur->buff_tir_timer = 0.0f;
+            joueur->arme = 0;
+        }
+    }
+
     // déplacer bulles
     for(int i = 0; i < niveau->bulles.nb; i++){
         if(!niveau->bulles.tab[i].actif){
@@ -110,8 +154,11 @@ void maj_niveau(Niveau* niveau, Joueur* joueur, float dt){
         if(!niveau->bulles.tab[i].actif) continue;
         for(int j = 0; j < niveau->nb_projectiles; j++){
             if(niveau->projectiles[j].actif && niveau->projectiles[j].type == 0 && collision_bulle_projectile(&niveau->bulles.tab[i], &niveau->projectiles[j])){
+                float drop_x = niveau->bulles.tab[i].x;
+                float drop_y = niveau->bulles.tab[i].y;
                 niveau->projectiles[j].actif = 0;
                 joueur->score += 5;
+                creer_buff_tir_rapide(niveau, drop_x, drop_y);
                 diviser_bulle(&niveau->bulles.tab[i], &niveau->bulles);
                 printf("Collision bulle !\n");
                 break;
@@ -142,9 +189,23 @@ void maj_niveau(Niveau* niveau, Joueur* joueur, float dt){
         deplacer_boss(&niveau->boss, dt);
     }
 
+    for(int i = 0; i < niveau->nb_buffs; i++){
+        if(!niveau->buffs[i].actif) continue;
+
+        niveau->buffs[i].y += niveau->buffs[i].vitesse * dt;
+
+        if(collision_buff_joueur(&niveau->buffs[i], joueur)){
+            niveau->buffs[i].actif = 0;
+            joueur->arme = 1;
+            joueur->buff_tir_timer = BUFF_DUREE_TIR_RAPIDE;
+        } else if(niveau->buffs[i].y > SCREEN_H - 80){
+            niveau->buffs[i].actif = 0;
+        }
+    }
+
     // éclairs des bulles
     for(int i = 0; i < niveau->bulles.nb; i++){
-        if(niveau->bulles.tab[i].type == 1){
+        if(niveau->bulles.tab[i].actif && niveau->bulles.tab[i].type == 1){
             eclair_bulle(&niveau->bulles.tab[i], niveau->projectiles, &niveau->nb_projectiles, dt);
         }
     }
