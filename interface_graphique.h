@@ -52,12 +52,14 @@ void draw_boss(int x, int y, int moving_boss, int dir);
 void draw_boss_vie(int vie);
 
 void draw_bubble(Bulle *bulle);
-void draw_bubble_hitbox(Bulle* bulle);
+// hitbox pour debug
+void draw_bubble_hitbox(Bulle* bulle); 
 void draw_player_hitbox(Joueur* joueur);
 void draw_boss_hitbox(Boss* boss);
 void draw_projectile_hitbox(Projectile* proj);
 void draw_projectile_boss_hitbox(int x, int y, int active);
 void draw_eclair_hitbox(Projectile* proj);
+
 void draw_buff(Buff* buff);
 void draw_buff_timer(Joueur* joueur);
 
