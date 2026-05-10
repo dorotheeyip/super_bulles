@@ -2,7 +2,6 @@
 #define JOUEUR_H
 
 #include <string.h>
-#include "niveau.h"
 #include "struct.h"
 
 void initialiser_joueur(Joueur* joueur, char* pseudo);

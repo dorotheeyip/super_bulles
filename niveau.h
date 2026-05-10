@@ -5,7 +5,6 @@
 #include <stdlib.h>
 #include "joueur.h"
 #include "struct.h"
-#include "interface_graphique.h"
 
 #define BOSS_PV_MAX 25
 #define RAYON_HITBOX_PROJECTILE_BOSS 30.0f
@@ -13,6 +12,11 @@
 #define ECLAIR_HITBOX_HAUTEUR 240.0f
 #define ECLAIR_DUREE_VIE 0.24f
 #define ECLAIR_DELAI_HITBOX 0.08f
+
+typedef void (*EffetCallback)(int x, int y);
+
+void niveau_set_effets_callbacks(EffetCallback explosion_cb, EffetCallback eclair_cb);
+// Permet de définir les fonctions à appeler pour les effets d'explosion et d'éclair
 
 void initialiser_niveau(Niveau* niveau, int num_niveau);
 // Initialise un niveau 

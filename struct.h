@@ -1,6 +1,9 @@
 #ifndef STRUCT_H
 #define STRUCT_H
 
+#define JEU_LARGEUR_ECRAN 800
+#define JEU_HAUTEUR_ECRAN 600
+
 // Structure d'un joueur
 typedef struct Joueur {
     char pseudo[20];

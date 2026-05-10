@@ -1,11 +1,26 @@
 #include "niveau.h"
-#include "interface_graphique.h"
 
 #define BOSS_VITESSE_INITIALE 120.0f
 #define BOSS_ACCELERATION 25.0f
 #define DELAI_CHARGE_ECLAIR 0.6f
 #define BUFF_DUREE_TIR_RAPIDE 5.0f
 #define BUFF_PROBA_DROP 5
+
+static EffetCallback effet_explosion_cb = NULL;
+static EffetCallback effet_eclair_cb = NULL;
+
+void niveau_set_effets_callbacks(EffetCallback explosion_cb, EffetCallback eclair_cb) {
+    effet_explosion_cb = explosion_cb;
+    effet_eclair_cb = eclair_cb;
+}
+
+static void emettre_explosion(float x, float y) {
+    if(effet_explosion_cb) effet_explosion_cb((int)x, (int)y);
+}
+
+static void emettre_eclair(float x, float y) {
+    if(effet_eclair_cb) effet_eclair_cb((int)x, (int)y);
+}
 
 static float random_unit(void) {
     return (float)rand() / (float)RAND_MAX;
@@ -42,7 +57,7 @@ void initialiser_niveau(Niveau* niveau, int num_niveau){
         for(int i = 0; i < niveau->bulles.nb; i++){
 
             niveau->bulles.tab[i].r = 50;
-            niveau->bulles.tab[i].x = (float)(niveau->bulles.tab[i].r + rand() % (SCREEN_W - 2 * niveau->bulles.tab[i].r));
+            niveau->bulles.tab[i].x = (float)(niveau->bulles.tab[i].r + rand() % (JEU_LARGEUR_ECRAN - 2 * niveau->bulles.tab[i].r));
             niveau->bulles.tab[i].y = 50;
             if(i % 2 == 0) niveau->bulles.tab[i].vx = 160;
             else niveau->bulles.tab[i].vx = -160;
@@ -70,7 +85,7 @@ void initialiser_niveau(Niveau* niveau, int num_niveau){
         niveau->bulles.capacite = 50;
         niveau->bulles.tab = malloc(sizeof(Bulle) * 50);
 
-        niveau->boss.x = SCREEN_W/2;
+        niveau->boss.x = JEU_LARGEUR_ECRAN/2;
         niveau->boss.y = 50;
         niveau->boss.pv = BOSS_PV_MAX;
         niveau->boss.vitesse = BOSS_VITESSE_INITIALE;
@@ -78,7 +93,7 @@ void initialiser_niveau(Niveau* niveau, int num_niveau){
 
     // Always initialize boss position
     if(num_niveau < 3){
-        niveau->boss.x = SCREEN_W/2;
+        niveau->boss.x = JEU_LARGEUR_ECRAN/2;
         niveau->boss.y = 50;
         niveau->boss.vitesse = 0;
     }
@@ -145,7 +160,7 @@ void maj_niveau(Niveau* niveau, Joueur* joueur, float dt){
             }
             else niveau->projectiles[i].y -= niveau->projectiles[i].vitesse * dt;
             // suppression si sort de l'écran
-            if(niveau->projectiles[i].y < 0 || niveau->projectiles[i].y > SCREEN_H){
+            if(niveau->projectiles[i].y < 0 || niveau->projectiles[i].y > JEU_HAUTEUR_ECRAN){
                 niveau->projectiles[i].actif = 0;
             }
         }
@@ -179,7 +194,7 @@ void maj_niveau(Niveau* niveau, Joueur* joueur, float dt){
             if(niveau->projectiles[j].actif && niveau->projectiles[j].type == 0 && collision_boss_projectile(&niveau->boss, &niveau->projectiles[j])){
                 niveau->projectiles[j].actif = 0;
                 niveau->boss.pv--;
-                spawn_explosion(niveau->boss.x, niveau->boss.y);
+                emettre_explosion(niveau->boss.x, niveau->boss.y);
                 if(niveau->boss.vitesse < 0) niveau->boss.vitesse -= BOSS_ACCELERATION;
                 else niveau->boss.vitesse += BOSS_ACCELERATION;
             }
@@ -200,7 +215,7 @@ void maj_niveau(Niveau* niveau, Joueur* joueur, float dt){
             niveau->buffs[i].actif = 0;
             joueur->arme = 1;
             joueur->buff_tir_timer = BUFF_DUREE_TIR_RAPIDE;
-        } else if(niveau->buffs[i].y > SCREEN_H - 80){
+        } else if(niveau->buffs[i].y > JEU_HAUTEUR_ECRAN - 80){
             niveau->buffs[i].actif = 0;
         }
     }
@@ -255,7 +270,7 @@ void maj_niveau_duel(Niveau* niveau, Joueur* joueur1, Joueur* joueur2, float dt)
                 }
             }
             else niveau->projectiles[i].y -= niveau->projectiles[i].vitesse * dt;
-            if(niveau->projectiles[i].y < 0 || niveau->projectiles[i].y > SCREEN_H){
+            if(niveau->projectiles[i].y < 0 || niveau->projectiles[i].y > JEU_HAUTEUR_ECRAN){
                 niveau->projectiles[i].actif = 0;
             }
         }
@@ -291,7 +306,7 @@ void maj_niveau_duel(Niveau* niveau, Joueur* joueur1, Joueur* joueur2, float dt)
                 niveau->boss.pv--;
                 if(proprietaire == 2) joueur2->score += 5;
                 else joueur1->score += 5;
-                spawn_explosion(niveau->boss.x, niveau->boss.y);
+                emettre_explosion(niveau->boss.x, niveau->boss.y);
                 if(niveau->boss.vitesse < 0) niveau->boss.vitesse -= BOSS_ACCELERATION;
                 else niveau->boss.vitesse += BOSS_ACCELERATION;
             }
@@ -312,7 +327,7 @@ void maj_niveau_duel(Niveau* niveau, Joueur* joueur1, Joueur* joueur2, float dt)
             niveau->buffs[i].actif = 0;
             joueur2->arme = 1;
             joueur2->buff_tir_timer = BUFF_DUREE_TIR_RAPIDE;
-        } else if(niveau->buffs[i].y > SCREEN_H - 80){
+        } else if(niveau->buffs[i].y > JEU_HAUTEUR_ECRAN - 80){
             niveau->buffs[i].actif = 0;
         }
     }
@@ -330,7 +345,7 @@ int niveau_termine(Niveau* niveau, Joueur* joueur){
     for(int i = 0; i < niveau->bulles.nb; i++){
         if(!niveau->bulles.tab[i].actif) continue;
         if(collision_bulle_joueur(&niveau->bulles.tab[i], joueur)){
-            spawn_explosion(joueur->x, joueur->y);
+            emettre_explosion(joueur->x, joueur->y);
             return 0; 
         }
     }
@@ -339,7 +354,7 @@ int niveau_termine(Niveau* niveau, Joueur* joueur){
         if(niveau->projectiles[i].actif && niveau->projectiles[i].type == 1){
             if(collision_projectile_boss_joueur(&niveau->projectiles[i], joueur)){
                 niveau->projectiles[i].actif = 0;
-                spawn_explosion(joueur->x + joueur->tx / 2, joueur->y + joueur->ty / 2);
+                emettre_explosion(joueur->x + joueur->tx / 2, joueur->y + joueur->ty / 2);
                 return 0;
             }
         }
@@ -371,8 +386,8 @@ void deplacer_bulle(Bulle* bulle, float dt){
         bulle->x = bulle->r;
         if(bulle->vx < 0) bulle->vx = -bulle->vx;
     }
-    else if(bulle->x + bulle->r > SCREEN_W){
-        bulle->x = SCREEN_W - bulle->r;
+    else if(bulle->x + bulle->r > JEU_LARGEUR_ECRAN){
+        bulle->x = JEU_LARGEUR_ECRAN - bulle->r;
         if(bulle->vx > 0) bulle->vx = -bulle->vx;
     }
 
@@ -380,8 +395,8 @@ void deplacer_bulle(Bulle* bulle, float dt){
         bulle->y = bulle->r;
         if(bulle->vy < 0) bulle->vy = -bulle->vy * 0.9;
     }
-    else if(bulle->y + bulle->r > SCREEN_H-90){
-        bulle->y = SCREEN_H - 90 - bulle->r;
+    else if(bulle->y + bulle->r > JEU_HAUTEUR_ECRAN-90){
+        bulle->y = JEU_HAUTEUR_ECRAN - 90 - bulle->r;
         if(bulle->vy > 0) bulle->vy = -bulle->vy * 0.9;
     }
 
@@ -392,7 +407,7 @@ void deplacer_bulle(Bulle* bulle, float dt){
 void diviser_bulle(Bulle* bulle, ListeBulles* liste){
     if(bulle->nb_splits >= 2 || bulle->r <= 10){
         bulle->actif = 0;
-        spawn_explosion(bulle->x, bulle->y);
+        emettre_explosion(bulle->x, bulle->y);
         return;
     }
     Bulle nouvelle = *bulle;
@@ -500,8 +515,8 @@ void deplacer_boss(Boss* boss, float dt){
         boss->x = 0;
         if(boss->vitesse < 0) boss->vitesse = -boss->vitesse;
     }
-    else if(boss->x >= SCREEN_W){
-        boss->x = SCREEN_W;
+    else if(boss->x >= JEU_LARGEUR_ECRAN){
+        boss->x = JEU_LARGEUR_ECRAN;
         if(boss->vitesse > 0) boss->vitesse = -boss->vitesse;
     }
 }
@@ -524,13 +539,13 @@ int boss_attaque(Boss* boss, ListeBulles* bulles, Projectile* projectiles, int n
         if(projectiles[i].actif){
             projectiles[i].y += projectiles[i].vitesse * dt;
 
-            if(projectiles[i].y > SCREEN_H){
+            if(projectiles[i].y > JEU_HAUTEUR_ECRAN){
                 projectiles[i].actif = 0;
             }
             else if(collision_projectile_boss_joueur(&projectiles[i], joueur)){
                 projectiles[i].actif = 0;
                 joueur_touche = 1;
-                spawn_explosion(joueur->x + joueur->tx / 2, joueur->y + joueur->ty / 2);
+                emettre_explosion(joueur->x + joueur->tx / 2, joueur->y + joueur->ty / 2);
             }
         }
     }
@@ -614,7 +629,7 @@ void eclair_bulle(Bulle* bulle, Projectile* projectiles, int* nb_projectiles, fl
         projectiles[index].delai_activation = ECLAIR_DELAI_HITBOX;
         projectiles[index].actif = 1;
         projectiles[index].type = 1;
-        spawn_eclair(bulle->x, bulle->y);
+        emettre_eclair(bulle->x, bulle->y);
     }
 }
 

@@ -101,6 +101,7 @@ int main(void) {
         printf("Erreur initialisation graphique\n");
         return -1;
     }
+    niveau_set_effets_callbacks(spawn_explosion, spawn_eclair);
 
     ihm_init();
 
