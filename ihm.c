@@ -3,16 +3,13 @@
 #include <allegro.h>
 #include <string.h>
 
-#define TOUCHE_GAUCHE_J1 KEY_A
-#define TOUCHE_DROITE_J1 KEY_D
-#define TOUCHE_PAUSE_J1  KEY_Z
+#define TOUCHE_GAUCHE_J1 KEY_LEFT
+#define TOUCHE_DROITE_J1 KEY_RIGHT
+#define TOUCHE_PAUSE_J1  KEY_SPACE
 
-#define TOUCHE_GAUCHE_J2 KEY_J
-#define TOUCHE_DROITE_J2 KEY_L
-#define TOUCHE_PAUSE_J2  KEY_I
-
-#define LARGEUR 800
-#define HAUTEUR 600
+#define TOUCHE_GAUCHE_J2 KEY_A //Q
+#define TOUCHE_DROITE_J2 KEY_D //D
+#define TOUCHE_PAUSE_J2  KEY_SPACE
 
 static EtatJeu etat_courant;
 static Input inputs_j1;
@@ -62,25 +59,58 @@ EtatJeu ihm_get_etat() {
 /* MENUS */
 /* ===================== */
 
-int ihm_menu_principal() {
-    if (ihm_touche_appuyee(KEY_1)) return 1;
-    if (ihm_touche_appuyee(KEY_2)) return 2;
-    if (ihm_touche_appuyee(KEY_3)) return 3;
-    if (ihm_touche_appuyee(KEY_4)) return 4;
+int ihm_menu_principal(int *selection, int nb_options) {
+    if (ihm_touche_appuyee(KEY_UP)) {
+        (*selection)--;
+        if (*selection < 0) *selection = nb_options - 1;
+    }
+
+    if (ihm_touche_appuyee(KEY_DOWN)) {
+        (*selection)++;
+        if (*selection >= nb_options) *selection = 0;
+    }
+
+    if (ihm_touche_appuyee(KEY_ENTER)) {
+        return *selection + 1;
+    }
+
     return 0;
 }
 
-int ihm_menu_pause() {
-    if (ihm_touche_appuyee(KEY_1)) return 1;
-    if (ihm_touche_appuyee(KEY_2)) return 2;
+int ihm_menu_pause(int *selection, int nb_options) {
+    if (ihm_touche_appuyee(KEY_UP)) {
+        (*selection)--;
+        if (*selection < 0) *selection = nb_options - 1;
+    }
+
+    if (ihm_touche_appuyee(KEY_DOWN)) {
+        (*selection)++;
+        if (*selection >= nb_options) *selection = 0;
+    }
+
+    if (ihm_touche_appuyee(KEY_ENTER)) {
+        return *selection + 1;
+    }
+
     return 0;
 }
 
-int ihm_menu_fin_niveau(int victoire) {
-    if (ihm_touche_appuyee(KEY_1)) return 1;
-    if (ihm_touche_appuyee(KEY_2)) return 2;
-    if (ihm_touche_appuyee(KEY_3)) return 3;
-    if (ihm_touche_appuyee(KEY_4)) return 4;
+int ihm_menu_fin_niveau(int *selection, int nb_options) {
+    if (ihm_touche_appuyee(KEY_UP)) {
+        (*selection)--;
+        if (*selection < 0) *selection = nb_options - 1;
+    }
+
+    if (ihm_touche_appuyee(KEY_DOWN)) {
+        (*selection)++;
+        if (*selection >= nb_options) *selection = 0;
+    }
+
+    if (ihm_touche_appuyee(KEY_ENTER)) {
+        return *selection + 1;
+    }
+
+    return 0;
     return 0;
 }
 
@@ -230,136 +260,3 @@ void ihm_maj_etats_precedents() {
         key_old[i] = key[i];
     }
 }
-
-
-int main_ihm() {
-    allegro_init();
-    install_keyboard();
-    install_mouse();
-    install_timer();
-
-    set_color_depth(32);
-    set_gfx_mode(GFX_AUTODETECT_WINDOWED, LARGEUR, HAUTEUR, 0, 0);
-
-    ihm_init();
-
-    int running = 1;
-
-    while (running) {
-
-        ihm_update();
-
-        switch (ihm_get_etat()) {
-
-        /* ===================== */
-        /* MENU */
-        /* ===================== */
-        case ETAT_MENU:
-
-            clear(screen);
-
-            textout_ex(screen, font, "MENU", 350, 100, makecol(255,255,255), -1);
-            textout_ex(screen, font, "1: JEU", 350, 200, makecol(255,255,255), -1);
-            textout_ex(screen, font, "4: QUIT", 350, 260, makecol(255,255,255), -1);
-
-            if (ihm_touche_appuyee(KEY_1)) {
-                ihm_set_etat(ETAT_SAISIE);
-            }
-
-            if (ihm_touche_appuyee(KEY_4)) {
-                running = 0;
-            }
-
-            break;
-
-        /* ===================== */
-        /* SAISIE PSEUDO */
-        /* ===================== */
-        case ETAT_SAISIE: {
-
-            static SaisiePseudo saisie;
-            static int init = 0;
-
-            if (!init) {
-                ihm_init_saisie_pseudo(&saisie);
-                init = 1;
-            }
-
-            clear(screen);
-
-            ihm_update_saisie_pseudo(&saisie);
-            ihm_afficher_saisie_pseudo(&saisie, 250, 200);
-
-            if (saisie.fini) {
-                init = 0;
-                ihm_set_etat(ETAT_JEU);
-            }
-
-        } break;
-
-        /* ===================== */
-        /* JEU */
-        /* ===================== */
-        case ETAT_JEU: {
-
-            clear(screen);
-
-            textout_ex(screen, font, "JEU ACTIF", 350, 50, makecol(255,255,255), -1);
-
-            Input j1, j2;
-
-            ihm_lire_inputs(&j1);
-            ihm_lire_inputs_joueur2(&j2);
-
-            /* J1 */
-            if (j1.gauche) textout_ex(screen, font, "J1 GAUCHE", 100, 150, makecol(255,0,0), -1);
-            if (j1.droite) textout_ex(screen, font, "J1 DROITE", 100, 180, makecol(0,255,0), -1);
-
-            /* J2 */
-            if (j2.gauche) textout_ex(screen, font, "J2 GAUCHE", 500, 150, makecol(255,0,0), -1);
-            if (j2.droite) textout_ex(screen, font, "J2 DROITE", 500, 180, makecol(0,255,0), -1);
-
-            /* PAUSE */
-            if (ihm_touche_appuyee(TOUCHE_PAUSE_J1)) {
-                ihm_set_etat(ETAT_PAUSE);
-            }
-
-            if (ihm_touche_appuyee(TOUCHE_PAUSE_J2)) {
-                ihm_set_etat(ETAT_PAUSE);
-            }
-
-        } break;
-
-        /* ===================== */
-        /* PAUSE */
-        /* ===================== */
-        case ETAT_PAUSE:
-
-            clear(screen);
-
-            textout_ex(screen, font, "PAUSE", 380, 200, makecol(255,255,0), -1);
-            textout_ex(screen, font, "1: Reprendre", 350, 250, makecol(255,255,255), -1);
-            textout_ex(screen, font, "2: Menu", 350, 280, makecol(255,255,255), -1);
-
-            if (ihm_touche_appuyee(KEY_1)) {
-                ihm_set_etat(ETAT_JEU);
-            }
-
-            if (ihm_touche_appuyee(KEY_2)) {
-                ihm_set_etat(ETAT_MENU);
-            }
-
-            break;
-
-        default:
-            break;
-        }
-
-        ihm_maj_etats_precedents();
-        rest(16);
-    }
-
-    ihm_fermer();
-    return 0;
-}
-END_OF_MAIN();

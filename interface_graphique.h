@@ -3,6 +3,7 @@
 
 #include <allegro.h>
 #include "struct.h"
+#include "ihm.h"
 
 #define NB_OPTIONS 5
 #define NB_ECLAIRS 5
@@ -10,14 +11,8 @@
 #define NB_EXPLOSIONS 5
 #define NB_PROJ_BOSS 5
 
-typedef enum {
-    ETAT_MENU,
-    ETAT_JEU,
-    ETAT_FIN,
-    ETAT_REGLES,
-    ETAT_PSEUDO,
-    ETAT_DUO
-} EtatJeu;
+extern float fin_scale;
+
 
 /* ============================= */
 /* ===== INITIALISATION ========= */

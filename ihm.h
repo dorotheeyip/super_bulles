@@ -3,12 +3,13 @@
 
 // Permet la différenciation des états de jeu
 typedef enum {
-    ETAT_MENU = 0,
+    ETAT_MENU,
     ETAT_JEU,
+    ETAT_FIN,
+    ETAT_REGLES,
     ETAT_PAUSE,
-    ETAT_FIN_NIVEAU,
-    ETAT_SAISIE,
-    ETAT_REGLES
+    ETAT_PSEUDO,
+    ETAT_DUO
 } EtatJeu;
 
 // Permet le déplacement du joueur
@@ -40,19 +41,19 @@ void ihm_update();
 void ihm_fermer();
 
 // Permet de mettre à jour l'état courant du jeu
-void ihm_set_etat(EtatJeu etat); 
+void ihm_set_etat(EtatJeu etat);
 
 // Retourne l'etat courant du jeu
 EtatJeu ihm_get_etat();
 
 // Affiche le menu principal et gère les intéractions avec l'utilisateur
-int  ihm_menu_principal();
+int ihm_menu_principal(int *selection, int nb_options);
 
 // Affiche le menu de pause et gère les intéractions
-int  ihm_menu_pause();
+int ihm_menu_pause(int *selection, int nb_options);
 
 // Affiche le menu de fin et gère les interactions
-int  ihm_menu_fin_niveau(int victoire);
+int  ihm_menu_fin_niveau(int *selection, int nb_options);
 
 // Affiche les règles du jeu
 void ihm_afficher_regles();
@@ -92,4 +93,4 @@ void ihm_reset_inputs();
 
 void ihm_maj_etats_precedents();
 
-#endif 
+#endif

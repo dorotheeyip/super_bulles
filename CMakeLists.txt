@@ -13,6 +13,8 @@ add_executable(super_bulles
         niveau.h
         jeu.c
         jeu.h
+        ihm.c
+        ihm.h
         struct.h)
 
 if(APPLE)
